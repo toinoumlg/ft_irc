@@ -1,192 +1,207 @@
 #include "Irc.hpp"
 
-#include <cassert>
-#include <netinet/in.h>
-#include <cstdlib>
-#include <cstring>
-#include <cerrno>
-#include <iostream>
-#include <unistd.h>
+#include "ServerResponse.hpp"
+
+static const std::string LOCALHOST = ":localhost ";
+static const std::string CR_LF = "\r\n";
 
 const Irc::CommandEntry Irc::_commands[] = {
-    {"NICK", "nick", &Irc::Nick},
-    {"USER", "user", &Irc::User},
-    {"QUIT", "quit", &Irc::Quit},
-    {"CAP", "cap", &Irc::Cap}
-};
+    {"NICK", "nick", &Irc::Nick}, {"USER", "user", &Irc::User},
+    {"QUIT", "quit", &Irc::Quit}, {"CAP", "cap", &Irc::Cap},
+    {"PING", "ping", &Irc::Ping}, {"PASS", "pass", &Irc::Pass}};
 
-const char BR_CR[] = "\r\n";
+Irc::Irc(const char *port, const char *password)
+    : _socket_in_use(0),
+      _connected_clients(0),
+      _port(port),
+      _password(password),
+      _address() {
+	const int opt = 1;
+	// socket creation
+	// AF_INET = ipv4
+	// SOCK_STREAM = TCP and SOCK_NONBLOCK = I/O non-blocking
+	// protocol 0 is to target ips
+	_server_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+	if (_server_socket < 0)
+		throw std::invalid_argument(strerror(errno));
 
-Irc::Irc(std::string port, std::string password) : _socket_in_use(0),
-                                                   _address() {
-    _port = port;
-    _password = password;
-    int opt = 1;
-    // socket creation
-    // AF_INET = ipv4
-    // SOCK_STREAM = TCP and SOCK_NONBLOCK = I/O non-blocking
-    // protocol 0 is to target ips
-    _server_socket = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (_server_socket < 0)
-        throw std::logic_error(strerror(errno));
+	// https://stackoverflow.com/questions/21515946/what-is-sol-socket-used-for
+	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+	               &opt, sizeof(opt)))
+		throw std::invalid_argument(strerror(errno));
 
-    if (setsockopt(_server_socket,SOL_SOCKET,SO_REUSEADDR | SO_REUSEPORT, &opt,
-                   sizeof(opt)))
-        throw std::logic_error(strerror(errno));
+	// Settings for incoming connection from client
+	// Acceptation ipv4 AF_INET
+	// From any address INADDR_ANY
+	// Only on one defined port => htons(atoi(port))
+	_address.sin_family = AF_INET;
+	_address.sin_addr.s_addr = INADDR_ANY;
+	_address.sin_port = htons(std::strtol(_port.c_str(), NULL, 10));
 
-    // Settings for incoming connection from client
-    // Acceptation ipv4 AF_INET
-    // From any address INADDR_ANY
-    // Only on one defined port => htons(atoi(port))
+	// apply the settings on our server socket (bind())
+	if (bind(_server_socket, reinterpret_cast<sockaddr *>(&_address),
+	         sizeof(_address)) < 0)
+		throw std::invalid_argument(strerror(errno));
 
-    _address.sin_family = AF_INET;
-    _address.sin_addr.s_addr = INADDR_ANY;
-    _address.sin_port = htons(std::strtol(port.c_str(), NULL, 10));
+	// create the server pollfd description
+	const pollfd server = {
+	    .fd = _server_socket,
+	    .events = POLLIN,
+	    .revents = 0,
+	};
 
-    // apply the settings on our server socket (bind())
-    if (bind(_server_socket, reinterpret_cast<sockaddr *>(&_address),
-             sizeof(_address)) < 0)
-        throw std::logic_error(strerror(errno));
-    _connected_clients = 0;
+	_pollfds.push_back(server);
+	_addrlen = sizeof(_address);
 
-    // create the server pollfd description
-    const pollfd server = {
-        .fd = _server_socket,
-        .events = POLLIN,
-        .revents = 0,
-    };
-
-    _pollfds.push_back(server);
-    _addrlen = sizeof(_address);
-
-    // enable passive listening of our server with 3 inside the queue
-    if (listen(_server_socket, 3))
-        throw std::logic_error(strerror(errno));
+	// enable passive listening of our server with 3 inside the queue
+	if (listen(_server_socket, 3))
+		throw std::invalid_argument(strerror(errno));
 }
 
 const int MAX_LENGTH = 512;
 
 void Irc::Run() {
-    while (true) {
-        const int res = poll(&_pollfds[0], _pollfds.size(), 300);
+	while (true) {
+		const int res = poll(&_pollfds[0], _pollfds.size(), 300);
 
-        if (!res)
-            continue;
+		if (!res)
+			continue;
 
-        if (_pollfds[0].revents & POLLIN)
-            ConnectClient();
+		if (_pollfds[0].revents & POLLIN)
+			ConnectClient();
 
+		for (int i = 0; i < _connected_clients; ++i) {
+			try {
+				const short client_events = _pollfds[i + 1].revents;
+				_socket_in_use = _pollfds[i + 1].fd;
 
-        for (int i = 0; i < _connected_clients; ++i) {
-            try {
-                const short client_events = _pollfds[i + 1].revents;
-                _socket_in_use = _pollfds[i + 1].fd;
+				if (client_events & (POLLERR | POLLHUP | POLLNVAL))
+					throw ClientClose("from client_events");
 
-                if (client_events & (POLLERR | POLLHUP | POLLNVAL))
-                    throw ClientClose("from client_events");
+				if (client_events & POLLIN) {
+					HandleRecv();
 
-                if (client_events & POLLIN) {
-                    HandleRecv();
-
-                    Client &client = _clients[_socket_in_use];
-                    while (client.HasPendingCommand())
-                        RunCommand(client.CreateArgs());
-                }
-            } catch (ClientClose &reason) {
-                std::cout << "Client " << _clients[_socket_in_use] <<
-                        " disconnected reason: " << reason.what() <<
-                        std::endl;
-                close(_socket_in_use);
-                _clients.erase(_clients.find(_socket_in_use));
-                _pollfds.erase(_pollfds.begin() + i + 1);
-                _connected_clients--;
-            }
-        }
-    }
+					Client &client = _clients[_socket_in_use];
+					while (client.HasPendingCommand()) RunCommand(client);
+				}
+			} catch (ClientClose &reason) {
+				std::cout << "Client " << _clients[_socket_in_use]
+				          << " disconnected reason: " << reason.what()
+				          << std::endl;
+				close(_socket_in_use);
+				_clients.erase(_clients.find(_socket_in_use));
+				_pollfds.erase(_pollfds.begin() + i + 1);
+				_connected_clients--;
+			}
+		}
+	}
 }
 
 void Irc::ConnectClient() {
-    _socket_in_use = accept(_server_socket, reinterpret_cast<sockaddr *>
-                            (&_address), &_addrlen);
+	_socket_in_use = accept(_server_socket,
+	                        reinterpret_cast<sockaddr *>(&_address), &_addrlen);
 
-    const pollfd pollfd = {
-        .fd = _socket_in_use,
-        .events = POLLIN,
-        .revents = 0,
-    };
+	const pollfd pollfd = {
+	    .fd = _socket_in_use,
+	    .events = POLLIN,
+	    .revents = 0,
+	};
 
-    _clients[_socket_in_use] = Client(_address);
-    _pollfds.push_back(pollfd);
-    _connected_clients++;
+	_clients[_socket_in_use] = Client(_address);
+	_pollfds.push_back(pollfd);
+	_connected_clients++;
 }
 
 bool Irc::HandleRecv() {
-    uint8_t recv_buffer[MAX_LENGTH + 1];
-    const ssize_t recv_size = recv(_socket_in_use, recv_buffer,
-                                   MAX_LENGTH,
-                                   0);
+	uint8_t recv_buffer[MAX_LENGTH + 1];
+	const ssize_t recv_size = recv(_socket_in_use, recv_buffer, MAX_LENGTH, 0);
 
-    if (recv_size == 0)
-        throw ClientClose("user asked for disconnect");
+	if (recv_size == 0)
+		throw ClientClose("user asked for disconnect");
 
-    if (recv_size < 0)
-        throw ClientClose("failed recv");
+	if (recv_size < 0)
+		throw std::runtime_error("failed recv for client");
 
-    _clients[_socket_in_use].PushBuffer(recv_buffer, recv_size);
-    return true;
+	_clients[_socket_in_use].PushBuffer(recv_buffer, recv_size);
+	return true;
 }
 
-void Irc::RunCommand(std::vector<std::string> args) {
-    if (args.empty())
-        return;
+void Irc::RunCommand(Client &client) {
+	std::vector<std::string> args = client.CreateArgs();
 
-    const std::string cmd = args[0];
-    args.erase(args.begin());
-    int max = sizeof(_commands) / sizeof(_commands[0]);
-    for (int i = 0; i < max; i++) {
-        if (cmd == _commands[i].lower || cmd == _commands[i].upper) {
-            (this->*_commands[i].handler)(args);
-            return;
-        }
-    }
+	if (args.empty())
+		return;
 
-    std::cout << "Invalid command: " << cmd;
-    for (size_t i = 0; i < args.size(); ++i) {
-        std::cout << "[" << args[i] << "] ";
-    }
-    std::cout << std::endl;
+	bool has_hit = false;
+	const std::string cmd = args[0];
+	args.erase(args.begin());
+	const int max = sizeof(_commands) / sizeof(_commands[0]);
+
+	for (int i = 0; i < max; ++i) {
+		if (cmd == _commands[i].lower || cmd == _commands[i].upper) {
+			(this->*_commands[i].handler)(args, client);
+			has_hit = true;
+			break;
+		}
+	}
+
+	if (client.NeedWelcome())
+		SendWelcome(client);
+
+	if (has_hit)
+		return;
+	std::cout << "Invalid command: " << cmd << " args: " << std::endl;
+	for (size_t i = 0; i < args.size(); ++i) {
+		std::cout << "[" << args[i] << "] ";
+	}
+	std::cout << std::endl;
 }
 
-void Irc::Quit(std::vector<std::string> &) {
-    throw ClientClose("user asked for disconnect");
+void Irc::Quit(std::vector<std::string> &, Client &) {
+	throw ClientClose("user asked for disconnect");
 }
 
-void Irc::Nick(std::vector<std::string> &) {
+void Irc::Nick(std::vector<std::string> &args, Client &client) {
+	if (!client.IsRegistered() && !client.HasSetPassword()) {
+		std::cout << "Client didn't set password yet" << std::endl;
+		return;
+	}
+	client.SetNickname(args[0]);
+}
+void Irc::Ping(std::vector<std::string> &args, Client &client) {
+	if (args.empty())
+		ServerResponse::NotEnoughArgument(_socket_in_use, client);
+
+	std::string message = LOCALHOST + "PONG" + CR_LF;
+	send(_socket_in_use, message.c_str(), message.size(), 0);
+}
+
+void Irc::Pass(std::vector<std::string> &args, Client &client) {
+	if (args.size() != 1) {
+	}
+
+	if (args[0] != _password) {
+	}
+
+	client.SetPassword(true);
 }
 
 // https://ircv3.net/specs/extensions/capability-negotiation.html
-void Irc::Cap(std::vector<std::string> &args) {
-    std::cout << args[0] << std::endl;
-    if (args.size() != 2)
-        return;
-    std::string send_buffer;
-    if (args[0] == "LS")
-        send_buffer = "CAP * LS :multi-prefix sasl\r\n";
-    else if (args[0] == "REQ")
-        send_buffer = "CAP * ACK multi-prefix\r\n";
+void Irc::Cap(std::vector<std::string> &, Client &) {}
 
-    size_t send_size = send(_socket_in_use, send_buffer.c_str(),
-                            send_buffer.length(), 0);
-    (void) send_size;
+void Irc::User(std::vector<std::string> &args, Client &client) {
+	if (!client.IsRegistered() && !client.HasSetPassword()) {
+		std::cout << "Client didn't set password yet" << std::endl;
+		return;
+	}
+
+	client.SetUser(args[0]);
 }
 
-void Irc::User(std::vector<std::string> &args) {
-    // for (size_t i = 0; i < args.size(); ++i) {
-    //     std::cout << args[i] << " ";
-    // }
-    // std::cout << std::endl;
-    (void) args;
+void Irc::SendWelcome(Client &client) const {
+	const std::string message = LOCALHOST + "001 " + client.GetNickname() +
+	                            " :Welcome to a random IRC Server" + CR_LF;
+	send(_socket_in_use, message.c_str(), message.size(), 0);
 }
 
-Irc::~Irc() {
-}
+Irc::~Irc() {}

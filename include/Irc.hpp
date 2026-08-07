@@ -1,78 +1,65 @@
 #pragma once
 
-#include <map>
+#include <netinet/in.h>
+#include <poll.h>
 #include <sys/socket.h>
+
+#include <map>
 #include <string>
 #include <vector>
-#include <netinet/in.h>
 
 #include "Channel.hpp"
 #include "Client.hpp"
-#include <poll.h>
 
 typedef std::map<int, Client> ClientMap;
 
-class ClientClose : public std::exception {
-public:
-    ClientClose(const char *msg) : _message(msg) {
-    }
-
-    const char *what() const throw() {
-        return _message.c_str();
-    }
-
-    ~ClientClose() throw() {
-    };
-
-private:
-    std::string _message;
-};
-
-
 class Irc {
-public:
-    Irc(std::string port, std::string password);
+   public:
+	Irc(const char *port, const char *password);
 
+	void Run();
 
-    void Run();
+	~Irc();
 
-    ~Irc();
+   private:
+	typedef void (Irc::*CommandHandler)(std::vector<std::string> &, Client &);
 
-private:
-    Irc();
+	struct CommandEntry {
+		const char *upper;
+		const char *lower;
+		CommandHandler handler;
+	};
 
-    typedef void (Irc::*CommandHandler)(std::vector<std::string> &);
+	static const CommandEntry _commands[];
 
-    struct CommandEntry {
-        const char *upper;
-        const char *lower;
-        CommandHandler handler;
-    };
+	void RunCommand(Client &client);
 
-    static const CommandEntry _commands[];
+	void ConnectClient();
 
-    void RunCommand(std::vector<std::string> args);
+	bool HandleRecv();
 
-    void ConnectClient();
+	void Cap(std::vector<std::string> &, Client &);
 
-    bool HandleRecv();
+	void User(std::vector<std::string> &args, Client &client);
 
-    void Cap(std::vector<std::string> &);
+	void SendWelcome(Client &client) const;
 
-    void User(std::vector<std::string> &args);
+	void Nick(std::vector<std::string> &args, Client &client);
 
-    void Nick(std::vector<std::string> &);
+	void Ping(std::vector<std::string> &args, Client &client);
 
-    void Quit(std::vector<std::string> &);
+	void Pass(std::vector<std::string> &args, Client &client);
 
-    int _server_socket;
-    int _socket_in_use;
-    int _connected_clients;
-    std::string _port;
-    std::string _password;
-    sockaddr_in _address;
-    socklen_t _addrlen;
-    std::vector<Channel> _channels;
-    std::vector<pollfd> _pollfds;
-    ClientMap _clients;
+	void Quit(std::vector<std::string> &, Client &);
+
+	int _server_socket;
+	int _socket_in_use;
+	int _connected_clients;
+	std::string _port;
+	std::string _password;
+	sockaddr_in _address;
+	socklen_t _addrlen;
+	std::vector<Channel> _channels;
+	std::vector<pollfd> _pollfds;
+	ClientMap _clients;
 };

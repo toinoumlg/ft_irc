@@ -6,7 +6,7 @@ SOURCE_DIR  = source
 OBJECTS_DIR = build
 INCLUDE_DIR = include
 
-CPP_FILES = main Client Irc Channel
+CPP_FILES = main Client Irc Channel ServerResponse
 SOURCES   = $(addprefix $(SOURCE_DIR)/, $(addsuffix .cpp, $(CPP_FILES)))
 OBJECTS   = $(patsubst $(SOURCE_DIR)/%.cpp, $(OBJECTS_DIR)/%.o, $(SOURCES))
 DEPS      = $(OBJECTS:.o=.d)

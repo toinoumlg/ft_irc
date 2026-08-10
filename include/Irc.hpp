@@ -57,6 +57,7 @@ class Irc {
 	int _connected_clients;
 	std::string _port;
 	std::string _password;
+	std::string _message;
 	sockaddr_in _address;
 	socklen_t _addrlen;
 	std::vector<Channel> _channels;

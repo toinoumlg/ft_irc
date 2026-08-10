@@ -1,6 +1,7 @@
 #include "Irc.hpp"
 
 #include "ServerResponse.hpp"
+#include "StatusCode.hpp"
 
 static const std::string LOCALHOST = ":localhost ";
 static const std::string CR_LF = "\r\n";
@@ -145,16 +146,15 @@ void Irc::RunCommand(Client &client) {
 		}
 	}
 
-	if (client.NeedWelcome())
-		SendWelcome(client);
-
-	if (has_hit)
+	if (!has_hit) {
+		std::string message = LOCALHOST + "421 ERR_UNKNOWNCOMMAND " + cmd +
+		                      " :Unknown command" + CR_LF;
+		send(_socket_in_use, message.c_str(), message.size(), 0);
 		return;
-	std::cout << "Invalid command: " << cmd << " args: " << std::endl;
-	for (size_t i = 0; i < args.size(); ++i) {
-		std::cout << "[" << args[i] << "] ";
 	}
-	std::cout << std::endl;
+
+	if (client.NeedWelcome())
+		return SendWelcome(client);
 }
 
 void Irc::Quit(std::vector<std::string> &, Client &) {
@@ -162,28 +162,35 @@ void Irc::Quit(std::vector<std::string> &, Client &) {
 }
 
 void Irc::Nick(std::vector<std::string> &args, Client &client) {
-	if (!client.IsRegistered() && !client.HasSetPassword()) {
-		std::cout << "Client didn't set password yet" << std::endl;
-		return;
+	if (args.empty()) {
+			ServerResponse::Send(_socket_in_use, StatusCode::ERR_NONICKNAMEGIVEN, "No nickname given");
 	}
-	client.SetNickname(args[0]);
+	else if () {
+		std::for_each()
+	}
+	else {
+		client.SetNickname(args[0]);
+	}
 }
 void Irc::Ping(std::vector<std::string> &args, Client &client) {
-	if (args.empty())
-		ServerResponse::NotEnoughArgument(_socket_in_use, client);
-
 	std::string message = LOCALHOST + "PONG" + CR_LF;
 	send(_socket_in_use, message.c_str(), message.size(), 0);
 }
 
 void Irc::Pass(std::vector<std::string> &args, Client &client) {
-	if (args.size() != 1) {
+	if (args.empty()) {
+		ServerResponse::Send(_socket_in_use,
+		                     StatusCode::ERR_NEEDMOREPARAMS + " PASS",
+		                     "Need more parameters");
+	} else if (args[0] != _password) {
+		ServerResponse::Send(_socket_in_use, StatusCode::ERR_PASSWDMISMATCH,
+		                     "Password incorrect");
+	} else if (client.HasSetPassword()) {
+		ServerResponse::Send(_socket_in_use, StatusCode::ERR_ALREADYREGISTRED,
+		                     "Unauthorized command (already registered)");
+	} else {
+		client.SetPassword(true);
 	}
-
-	if (args[0] != _password) {
-	}
-
-	client.SetPassword(true);
 }
 
 // https://ircv3.net/specs/extensions/capability-negotiation.html

@@ -56,6 +56,11 @@ Irc::Irc(const char *port, const char *password)
 	// enable passive listening of our server with 3 inside the queue
 	if (listen(_server_socket, 3))
 		throw std::invalid_argument(strerror(errno));
+
+	std::cout << "[SERVER] Listening on port "
+			<< _port
+			<< " | fd=" << _server_socket
+			<< std::endl;
 }
 
 const int MAX_LENGTH = 512;
@@ -85,9 +90,10 @@ void Irc::Run() {
 					while (client.HasPendingCommand()) RunCommand(client);
 				}
 			} catch (ClientClose &reason) {
-				std::cout << "Client " << _clients[_socket_in_use]
-				          << " disconnected reason: " << reason.what()
-				          << std::endl;
+				std::cout << "[DISCONNECT] fd=" << _socket_in_use
+						<< " | reason=" << reason.what()
+						<< std::endl;
+
 				close(_socket_in_use);
 				_clients.erase(_clients.find(_socket_in_use));
 				_pollfds.erase(_pollfds.begin() + i + 1);
@@ -110,6 +116,10 @@ void Irc::ConnectClient() {
 	_clients[_socket_in_use] = Client(_address);
 	_pollfds.push_back(pollfd);
 	_connected_clients++;
+
+	std::cout << "[CONNECT] fd=" << _socket_in_use
+          << " | clients=" << _connected_clients
+          << std::endl;
 }
 
 bool Irc::HandleRecv() {
@@ -118,11 +128,14 @@ bool Irc::HandleRecv() {
 
 	if (recv_size == 0)
 		throw ClientClose("user asked for disconnect");
-
 	if (recv_size < 0)
 		throw std::runtime_error("failed recv for client");
 
 	_clients[_socket_in_use].PushBuffer(recv_buffer, recv_size);
+
+	std::cout << "[RECV] fd=" << _socket_in_use
+			<< " | bytes=" << recv_size
+			<< std::endl;
 	return true;
 }
 
@@ -135,6 +148,9 @@ void Irc::RunCommand(Client &client) {
 	bool has_hit = false;
 	const std::string cmd = args[0];
 	args.erase(args.begin());
+	std::cout << "[CMD] fd=" << _socket_in_use
+          << " | " << cmd
+          << std::endl;
 	const int max = sizeof(_commands) / sizeof(_commands[0]);
 
 	for (int i = 0; i < max; ++i) {

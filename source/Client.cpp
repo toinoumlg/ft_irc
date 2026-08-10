@@ -10,7 +10,11 @@ Client::Client(const sockaddr_in &clientAddr)
 std::vector<std::string> Client::CreateArgs() {
 	std::vector<std::string> args = Split();
 
+	std::cout << args.size() << " ";
+
 	_buffer = _buffer.substr(_buffer.find('\n') + 1, _buffer.size());
+
+	std::cout << args.size() << " ";
 	return args;
 };
 
@@ -97,8 +101,12 @@ std::vector<std::string> Client::Split() const {
 
 	while (getline(ss, token, ' ')) {
 		const size_t end = token.find('\r');
-		if (end != std::string::npos)
+
+		if (end != std::string::npos) {
 			token = token.substr(0, end);
+			result.push_back(token);
+			break;
+		}
 		result.push_back(token);
 	}
 

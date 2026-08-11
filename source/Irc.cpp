@@ -7,9 +7,10 @@ static const std::string LOCALHOST = ":localhost ";
 static const std::string CR_LF = "\r\n";
 
 const Irc::CommandEntry Irc::_commands[] = {
-    {"NICK", "nick", &Irc::Nick}, {"USER", "user", &Irc::User},
-    {"QUIT", "quit", &Irc::Quit}, {"CAP", "cap", &Irc::Cap},
-    {"PING", "ping", &Irc::Ping}, {"PASS", "pass", &Irc::Pass}};
+    {"NICK", "nick", &Irc::Nick},         {"USER", "user", &Irc::User},
+    {"QUIT", "quit", &Irc::Quit},         {"CAP", "cap", &Irc::Cap},
+    {"PING", "ping", &Irc::Ping},         {"PASS", "pass", &Irc::Pass},
+    {"PRIVMSG", "privmsg", &Irc::Privmsg}};
 
 Irc::Irc(const char *port, const char *password)
     : _socket_in_use(0),
@@ -171,54 +172,6 @@ void Irc::RunCommand(Client &client) {
 
 	if (client.NeedWelcome())
 		return SendWelcome(client);
-}
-
-void Irc::Quit(std::vector<std::string> &, Client &) {
-	throw ClientClose("user asked for disconnect");
-}
-
-void Irc::Nick(std::vector<std::string> &args, Client &client) {
-	if (args.empty()) {
-			ServerResponse::Send(_socket_in_use, StatusCode::ERR_NONICKNAMEGIVEN, "No nickname given");
-	}
-	else if () {
-		std::for_each()
-	}
-	else {
-		client.SetNickname(args[0]);
-	}
-}
-void Irc::Ping(std::vector<std::string> &args, Client &client) {
-	std::string message = LOCALHOST + "PONG" + CR_LF;
-	send(_socket_in_use, message.c_str(), message.size(), 0);
-}
-
-void Irc::Pass(std::vector<std::string> &args, Client &client) {
-	if (args.empty()) {
-		ServerResponse::Send(_socket_in_use,
-		                     StatusCode::ERR_NEEDMOREPARAMS + " PASS",
-		                     "Need more parameters");
-	} else if (args[0] != _password) {
-		ServerResponse::Send(_socket_in_use, StatusCode::ERR_PASSWDMISMATCH,
-		                     "Password incorrect");
-	} else if (client.HasSetPassword()) {
-		ServerResponse::Send(_socket_in_use, StatusCode::ERR_ALREADYREGISTRED,
-		                     "Unauthorized command (already registered)");
-	} else {
-		client.SetPassword(true);
-	}
-}
-
-// https://ircv3.net/specs/extensions/capability-negotiation.html
-void Irc::Cap(std::vector<std::string> &, Client &) {}
-
-void Irc::User(std::vector<std::string> &args, Client &client) {
-	if (!client.IsRegistered() && !client.HasSetPassword()) {
-		std::cout << "Client didn't set password yet" << std::endl;
-		return;
-	}
-
-	client.SetUser(args[0]);
 }
 
 void Irc::SendWelcome(Client &client) const {

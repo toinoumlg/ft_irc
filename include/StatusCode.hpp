@@ -15,6 +15,11 @@ class StatusCode {
 	static const std::string ERR_RESTRICTED;
 	static const std::string ERR_UNAVAILRESOURCE;
 	static const std::string ERR_NICKNAMEINUSE;
+
+	//PRIVMSG
+	static const std::string ERR_NORECIPIENT;
+	static const std::string ERR_NOTEXTTOSEND;
+	static const std::string ERR_NOSUCHNICK;
 };
 
 

@@ -11,3 +11,9 @@ const std::string StatusCode::ERR_NICKCOLLISION = "462 ERR_NICKCOLLISION";
 const std::string StatusCode::ERR_RESTRICTED = "462 ERR_RESTRICTED";
 const std::string StatusCode::ERR_UNAVAILRESOURCE = "462 ERR_UNAVAILRESOURCE";
 const std::string StatusCode::ERR_NICKNAMEINUSE = "462 ERR_NICKNAMEINUSE";
+
+
+
+const std::string StatusCode::ERR_NOSUCHNICK = "401 ERR_NOSUCHNICK";
+const std::string StatusCode::ERR_NORECIPIENT = "411 ERR_NORECIPIENT";
+const std::string StatusCode::ERR_NOTEXTTOSEND = "412 ERR_NOTEXTTOSEND";

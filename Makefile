@@ -6,7 +6,9 @@ SOURCE_DIR  = source
 OBJECTS_DIR = build
 INCLUDE_DIR = include
 
-CPP_FILES = main Client Irc Channel ServerResponse StatusCode
+
+CMD_FILES = Pass Nick User Privmsg Quit Ping Cap
+CPP_FILES = main Client Irc Channel ServerResponse StatusCode $(addprefix commands/, $(CMD_FILES))
 SOURCES   = $(addprefix $(SOURCE_DIR)/, $(addsuffix .cpp, $(CPP_FILES)))
 OBJECTS   = $(patsubst $(SOURCE_DIR)/%.cpp, $(OBJECTS_DIR)/%.o, $(SOURCES))
 DEPS      = $(OBJECTS:.o=.d)

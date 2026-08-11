@@ -3,7 +3,7 @@
 ## 0. Status
 - [x] Done
 - [ ] To do
-- [ ] **In progress:** currently being implemented
+- [ ] **In progress:**
 
 ## 1. Network / Server
 - [x] `socket`
@@ -17,7 +17,7 @@
 
 ## 2. IRC Connection
 ### PASS
-- [ ] **In progress:** parse `PASS`
+- [ ] **In progress: (toinou)** parse `PASS`
 - [ ] Validate number of parameters
 - [ ] Compare password with server password
 - [ ] Reject incorrect password
@@ -25,7 +25,7 @@
 - [ ] Send correct IRC errors
 
 ### NICK
-- [ ] **In progress:** parse `NICK`
+- [ ] **In progress: (toinou)** parse `NICK`
 - [ ] Store nickname
 - [ ] Reject missing nickname
 - [ ] Reject invalid nickname
@@ -34,7 +34,7 @@
 - [ ] Notify relevant users when nickname changes
 
 ### USER
-- [ ] **In progress:** parse `USER`
+- [ ] **In progress: (toinou)** parse `USER`
 - [ ] Validate parameters
 - [ ] Store username
 - [ ] Store real name
@@ -45,7 +45,7 @@
 - [ ] Track nickname registration
 - [ ] Track user registration
 - [ ] Detect when registration becomes complete
-- [ ] **In progress:** `001 RPL_WELCOME`
+- [ ] **In progress: (toinou)** `001 RPL_WELCOME`
 - [ ] Ensure `001` is sent only after successful registration
 - [ ] Ensure welcome replies are not sent twice
 
@@ -59,12 +59,12 @@
 
 ## 4. Messaging
 ### Client → Client
-- [ ] Parse `PRIVMSG`
-- [ ] Find destination client by nickname
-- [ ] Forward message to destination
-- [ ] Handle unknown nickname
-- [ ] Handle missing recipient
-- [ ] Handle missing message
+- [x] Parse `PRIVMSG`
+- [x] Find destination client by nickname
+- [x] Forward message to destination
+- [x] Handle unknown nickname
+- [x] Handle missing recipient
+- [x] Handle missing message
 
 ### Client → Channel
 - [ ] Detect channel target

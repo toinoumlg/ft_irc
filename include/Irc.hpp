@@ -52,6 +52,8 @@ class Irc {
 
 	void Quit(std::vector<std::string> &, Client &);
 
+	void Privmsg(std::vector<std::string> &args, Client &client);
+
 	int _server_socket;
 	int _socket_in_use;
 	int _connected_clients;

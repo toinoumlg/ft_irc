@@ -3,10 +3,10 @@
 
 class Channel {
    public:
-	Channel(const std::string& name, int creatorfd);
+	Channel(const string& name, int creatorfd);
 	~Channel();
 
    private:
-	std::vector<int> _clients;
-	std::string _name;
+	vector<int> _clients;
+	string _name;
 };

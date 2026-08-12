@@ -1,37 +1,36 @@
 #include "Client.hpp"
 
-#include "Irc.hpp"
-
-Client::Client() : _clientAddr(), _is_initialized(false) {}
+Client::Client() : _client_addr(), _has_set_pwd(false), _is_registered(false) {}
 
 Client::Client(const sockaddr_in &clientAddr)
-    : _clientAddr(clientAddr), _is_initialized(false) {}
+    : _client_addr(clientAddr), _has_set_pwd(false), _is_registered(false) {}
 
-std::vector<std::string> Client::CreateArgs() {
-	std::vector<std::string> args = Split();
-
-	std::cout << args.size() << " ";
+vector<string> Client::CreateArgs() {
+	vector<string> args = Split();
 
 	_buffer = _buffer.substr(_buffer.find('\n') + 1, _buffer.size());
 
-	std::cout << args.size() << " ";
 	return args;
 };
 
 const char *Client::Address() const {
 	char test[1024];
 
-	return inet_ntop(AF_INET, &_clientAddr.sin_addr.s_addr, test, 1024);
+	return inet_ntop(AF_INET, &_client_addr.sin_addr.s_addr, test, 1024);
 }
 
 in_port_t Client::Port() const {
-	return _clientAddr.sin_port;
+	return _client_addr.sin_port;
 }
 
 void Client::PushBuffer(uint8_t *c, const size_t &size) {
 	_buffer.append(reinterpret_cast<char *>(c), size);
 	if (_buffer.length() >= MAX_BUFFER_SIZE)
-		throw ClientClose("command exceed max buffer size");
+		throw Close();
+}
+string Client::Identity() const {
+	string identity = ":" + _nickname + "!~" + _user;
+	return identity;
 }
 
 bool Client::HasPendingCommand() const {
@@ -54,55 +53,57 @@ void Client::SetPassword(const bool value) {
 bool Client::HasSetPassword() const {
 	return _has_set_pwd;
 }
-
-bool Client::NeedWelcome() {
-	if (!_is_initialized && !_nickname.empty() && !_user.empty() &&
-	    _has_set_pwd) {
-		_is_initialized = true;
-		return true;
-	}
-	return false;
+void Client::SetRegistered(bool value) {
+	_is_registered = value;
 }
+
 bool Client::IsRegistered() const {
-	return _is_initialized;
+	return _is_registered;
 }
 
-std::string &Client::GetNickname() {
+string &Client::GetNickname() {
 	return _nickname;
 }
 
-void Client::SetNickname(std::string &value) {
+void Client::SetNickname(const string &value) {
+	// should silently truncate if value > max server nickname length
 	_nickname = value;
 }
 
-std::string &Client::GetUser() {
+string &Client::GetUser() {
 	return _user;
 }
 
-void Client::SetUser(std::string &value) {
-	_user = value;
+void Client::SetUser(vector<string> &values) {
+	_user = values[0];
+	_mode = values[1];
+	if (values[3][0] == ':')
+		values[3] = values[3].substr(1, values[3].size());
+	for (size_t i = 3; i < values.size() - 1; ++i) _fullname += values[i] + " ";
+
+	_fullname += values.back();
 }
 
-std::string &Client::GetAlias() {
+string &Client::GetAlias() {
 	return _alias;
 }
 
-void Client::SetAlias(std::string &value) {
+void Client::SetAlias(const string &value) {
 	_alias = value;
 }
 
 Client::~Client() {}
 
 // https://www.geeksforgeeks.org/cpp/how-to-split-string-by-delimiter-in-cpp/
-std::vector<std::string> Client::Split() const {
-	std::stringstream ss(_buffer);
-	std::vector<std::string> result;
-	std::string token;
+vector<string> Client::Split() const {
+	stringstream ss(_buffer);
+	vector<string> result;
+	string token;
 
 	while (getline(ss, token, ' ')) {
 		const size_t end = token.find('\r');
 
-		if (end != std::string::npos) {
+		if (end != string::npos) {
 			token = token.substr(0, end);
 			result.push_back(token);
 			break;
@@ -110,10 +111,14 @@ std::vector<std::string> Client::Split() const {
 		result.push_back(token);
 	}
 
+	for (size_t i = 0; i < result.size(); ++i) {
+		cout << "[" << result[i] << "] ";
+	}
+	cout << endl;
 	return result;
 }
 
-std::ostream &operator<<(std::ostream &stream, const Client &client) {
-	std::cout << client.Address() << ":" << client.Port();
+ostream &operator<<(ostream &stream, const Client &client) {
+	cout << client.Address() << ":" << client.Port();
 	return stream;
 }

@@ -7,24 +7,19 @@
 #include <string>
 #include <vector>
 
+using namespace std;
+
 const int MAX_BUFFER_SIZE = 512;
-
-class ClientClose : public std::exception {
-   public:
-	ClientClose(const char *msg) : _message(msg) {}
-
-	const char *what() const throw() {
-		return _message.c_str();
-	}
-
-	~ClientClose() throw() {};
-
-   private:
-	std::string _message;
-};
 
 class Client {
    public:
+	class Close : public exception {
+	   public:
+		const char *what() const throw() {
+			return " disconnected";
+		}
+	};
+
 	Client();
 
 	Client(const sockaddr_in &clientAddr);
@@ -37,6 +32,8 @@ class Client {
 
 	void PushBuffer(uint8_t *c, const size_t &size);
 
+	string Identity() const;
+
 	bool HasPendingCommand() const;
 
 	bool IsValid() const;
@@ -45,34 +42,36 @@ class Client {
 
 	bool HasSetPassword() const;
 
-	bool NeedWelcome();
+	void SetRegistered(bool value);
 
 	bool IsRegistered() const;
 
-	std::string &GetNickname();
+	string &GetNickname();
 
-	void SetNickname(std::string &value);
+	void SetNickname(const string &value);
 
-	std::string &GetUser();
+	string &GetUser();
 
-	void SetUser(std::string &value);
+	void SetUser(vector<string> &values);
 
-	std::string &GetAlias();
+	string &GetAlias();
 
-	void SetAlias(std::string &value);
+	void SetAlias(const string &value);
 
-	std::vector<std::string> CreateArgs();
+	vector<string> CreateArgs();
 
    private:
-	std::vector<std::string> Split() const;
+	vector<string> Split() const;
 
-	std::string _buffer;
-	sockaddr_in _clientAddr;
-	std::string _user;
-	std::string _nickname;
-	std::string _alias;
+	string _buffer;
+	sockaddr_in _client_addr;
+	string _user;
+	string _nickname;
+	string _alias;
+	string _fullname;
+	string _mode;
 	bool _has_set_pwd;
-	bool _is_initialized;
+	bool _is_registered;
 };
 
-std::ostream &operator<<(std::ostream &stream, const Client &client);
+ostream &operator<<(ostream &stream, const Client &client);

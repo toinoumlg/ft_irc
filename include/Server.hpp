@@ -40,7 +40,7 @@ class Server {
 
 	void ConnectClient();
 
-	bool HandleRecv();
+	void HandleRecv();
 
 	void Cap(vector<string> &, Client &);
 

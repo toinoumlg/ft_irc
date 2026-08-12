@@ -1,5 +1,5 @@
-#include "Irc.hpp"
+#include "Server.hpp"
 
-void Irc::Quit(std::vector<std::string> &, Client &) {
-	throw ClientClose("user asked for disconnect");
+void Server::Quit(vector<string> &, Client &) {
+	throw Client::Close();
 }

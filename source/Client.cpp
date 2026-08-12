@@ -42,17 +42,14 @@ bool Client::HasPendingCommand() const {
 	return false;
 }
 
-bool Client::IsValid() const {
-	return _nickname.empty() || _nickname.length() > 9 || _alias.empty() ||
-	       _alias.length() > 10;
-}
-
 void Client::SetPassword(const bool value) {
 	_has_set_pwd = value;
 }
+
 bool Client::HasSetPassword() const {
 	return _has_set_pwd;
 }
+
 void Client::SetRegistered(bool value) {
 	_is_registered = value;
 }
@@ -111,10 +108,6 @@ vector<string> Client::Split() const {
 		result.push_back(token);
 	}
 
-	for (size_t i = 0; i < result.size(); ++i) {
-		cout << "[" << result[i] << "] ";
-	}
-	cout << endl;
 	return result;
 }
 

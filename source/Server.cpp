@@ -148,28 +148,4 @@ void Server::RunCommand(Client &client) {
 		                      cmd + " :Unknown command");
 }
 
-void Server::Privmsg(vector<string> &args, Client &client) {
-	if (args.size() < 2) {
-		return;
-	}
-
-	string &target = args[0];
-	for (ClientMap::iterator it = _clients.begin(); it != _clients.end();
-	     ++it) {
-		if (target == it->second.GetNickname()) {
-			string message;
-
-			for (size_t i = 1; i < args.size() - 1; ++i)
-				message += args[i] + " ";
-			message += args.back();
-			Response::Send(it->first, "PRIVMSG " + client.GetNickname(),
-			               message);
-			return;
-		}
-	}
-
-	Response::Send(_socket_in_use, StatusCode::ERR_NOSUCHNICK,
-	               client.GetNickname() + " :No such nick/channel");
-}
-
 Server::~Server() {}

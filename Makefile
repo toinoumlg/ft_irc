@@ -8,7 +8,7 @@ INCLUDE_DIR = include
 
 
 CMD_FILES = Pass Nick User Privmsg Quit Ping Cap
-CPP_FILES = main Client Irc Channel ServerResponse StatusCode $(addprefix commands/, $(CMD_FILES))
+CPP_FILES = main Client Server Channel Response StatusCode $(addprefix commands/, $(CMD_FILES))
 SOURCES   = $(addprefix $(SOURCE_DIR)/, $(addsuffix .cpp, $(CPP_FILES)))
 OBJECTS   = $(patsubst $(SOURCE_DIR)/%.cpp, $(OBJECTS_DIR)/%.o, $(SOURCES))
 DEPS      = $(OBJECTS:.o=.d)

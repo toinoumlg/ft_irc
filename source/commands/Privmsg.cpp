@@ -16,11 +16,8 @@ void Server::Privmsg(std::vector<std::string>& args, Client& client) {
 		     ++it) {
 			if (it->second.GetNickname() == args[0]) {
 				std::string message =
-				    ":" + client.GetNickname() + " PRIVMSG " + args[0] + " :";
-
-				for (size_t i = 1; i < args.size() - 1; ++i)
-					message += args[i] + " ";
-				message += args.back();
+					":" + client.GetNickname() + " PRIVMSG " +
+					args[0] + " :" + args[1] + CR_LF;
 
 				send(it->first, message.c_str(), message.size(), 0);
 				return;

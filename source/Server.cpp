@@ -1,5 +1,11 @@
 #include "Server.hpp"
 
+#include <cerrno>    // errno
+#include <cstdlib>   // strtol
+#include <cstring>   // strerror
+#include <iostream>  // cout, endl
+#include <unistd.h>  // close
+
 const Server::CommandEntry Server::_commands[] = {
     {"NICK", "nick", &Server::Nick},         {"USER", "user", &Server::User},
     {"QUIT", "quit", &Server::Quit},         {"CAP", "cap", &Server::Cap},
@@ -127,6 +133,12 @@ void Server::HandleRecv() {
 
 void Server::RunCommand(Client &client) {
 	vector<string> args = client.CreateArgs();
+
+	// // [DEBUG]
+	// cout << "----- PARSER -----" << endl;
+	// for (size_t i = 0; i < args.size(); ++i)
+	// 	cout << "args[" << i << "] = [" << args[i] << "]" << endl;
+	// cout << "------------------" << endl;
 
 	if (args.empty())
 		return;

@@ -1,17 +1,17 @@
 #include "Client.hpp"
 
-Client::Client() : _client_addr(), _has_set_pwd(false), _is_registered(false) {}
+// Constructors / Destructor
+
+Client::Client()
+	: _client_addr(), _has_set_pwd(false), _is_registered(false) {}
 
 Client::Client(const sockaddr_in &clientAddr)
-    : _client_addr(clientAddr), _has_set_pwd(false), _is_registered(false) {}
+	: _client_addr(clientAddr), _has_set_pwd(false), _is_registered(false) {}
 
-vector<string> Client::CreateArgs() {
-	vector<string> args = Split();
+Client::~Client() {}
 
-	_buffer = _buffer.substr(_buffer.find('\n') + 1, _buffer.size());
 
-	return args;
-};
+// Connection
 
 const char *Client::Address() const {
 	char test[1024];
@@ -23,24 +23,108 @@ in_port_t Client::Port() const {
 	return _client_addr.sin_port;
 }
 
+
+// IRC buffer / parsing
+
 void Client::PushBuffer(uint8_t *c, const size_t &size) {
 	_buffer.append(reinterpret_cast<char *>(c), size);
-	if (_buffer.length() >= MAX_BUFFER_SIZE)
+
+	const size_t last_end = _buffer.rfind("\r\n");
+	size_t pending_size;
+
+	if (last_end == string::npos)
+		pending_size = _buffer.size();
+	else
+		pending_size = _buffer.size() - (last_end + 2);
+
+	if (pending_size > MAX_BUFFER_SIZE - 2)
 		throw Close();
-}
-string Client::Identity() const {
-	string identity = ":" + _nickname + "!~" + _user;
-	return identity;
 }
 
 bool Client::HasPendingCommand() const {
-	const size_t cr = _buffer.find('\r');
-	const size_t lf = _buffer.find('\n');
-
-	if (cr && lf == cr + 1)
-		return true;
-	return false;
+	return _buffer.find("\r\n") != string::npos;
 }
+
+vector<string> Client::CreateArgs() {
+	const size_t line_end = _buffer.find("\r\n");
+
+	if (line_end == string::npos)
+		return vector<string>();
+
+	if (line_end + 2 > MAX_BUFFER_SIZE)
+		throw Close();
+
+	const string line = _buffer.substr(0, line_end);
+	_buffer.erase(0, line_end + 2);
+
+	return ParseLine(line);
+}
+
+vector<string> Client::ParseLine(const string &line) const {
+	vector<string> result;
+	size_t pos = 0;
+
+	while (pos < line.size() && line[pos] == ' ')
+		++pos;
+
+	while (pos < line.size()) {
+		if (line[pos] == ':') {
+			result.push_back(line.substr(pos + 1));
+			break;
+		}
+
+		const size_t end = line.find(' ', pos);
+
+		if (end == string::npos) {
+			result.push_back(line.substr(pos));
+			break;
+		}
+
+		result.push_back(line.substr(pos, end - pos));
+		pos = end + 1;
+
+		while (pos < line.size() && line[pos] == ' ')
+			++pos;
+	}
+
+	return result;
+}
+
+
+// Identity
+
+string Client::Identity() const {
+	return ":" + _nickname + "!~" + _user;
+}
+
+string &Client::GetNickname() {
+	return _nickname;
+}
+
+void Client::SetNickname(const string &value) {
+	_nickname = value;
+}
+
+string &Client::GetUser() {
+	return _user;
+}
+
+void Client::SetUser(vector<string> &values) {
+	_user = values[0];
+	_mode = values[1];
+	_fullname = values[3];
+}
+
+string &Client::GetAlias() {
+	return _alias;
+}
+
+void Client::SetAlias(const string &value) {
+	_alias = value;
+}
+
+
+// Registration
 
 void Client::SetPassword(const bool value) {
 	_has_set_pwd = value;
@@ -58,60 +142,10 @@ bool Client::IsRegistered() const {
 	return _is_registered;
 }
 
-string &Client::GetNickname() {
-	return _nickname;
-}
 
-void Client::SetNickname(const string &value) {
-	// should silently truncate if value > max server nickname length
-	_nickname = value;
-}
-
-string &Client::GetUser() {
-	return _user;
-}
-
-void Client::SetUser(vector<string> &values) {
-	_user = values[0];
-	_mode = values[1];
-	if (values[3][0] == ':')
-		values[3] = values[3].substr(1, values[3].size());
-	for (size_t i = 3; i < values.size() - 1; ++i) _fullname += values[i] + " ";
-
-	_fullname += values.back();
-}
-
-string &Client::GetAlias() {
-	return _alias;
-}
-
-void Client::SetAlias(const string &value) {
-	_alias = value;
-}
-
-Client::~Client() {}
-
-// https://www.geeksforgeeks.org/cpp/how-to-split-string-by-delimiter-in-cpp/
-vector<string> Client::Split() const {
-	stringstream ss(_buffer);
-	vector<string> result;
-	string token;
-
-	while (getline(ss, token, ' ')) {
-		const size_t end = token.find('\r');
-
-		if (end != string::npos) {
-			token = token.substr(0, end);
-			result.push_back(token);
-			break;
-		}
-		result.push_back(token);
-	}
-
-	return result;
-}
+// Stream operator
 
 ostream &operator<<(ostream &stream, const Client &client) {
-	cout << client.Address() << ":" << client.Port();
+	stream << client.Address() << ":" << client.Port();
 	return stream;
 }

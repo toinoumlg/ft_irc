@@ -1,10 +1,11 @@
 #include "Server.hpp"
 
-#include <cerrno>    // errno
-#include <cstdlib>   // strtol
-#include <cstring>   // strerror
-#include <iostream>  // cout, endl
-#include <unistd.h>  // close
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <fcntl.h>
+#include <iostream>
+#include <unistd.h>
 
 const Server::CommandEntry Server::_commands[] = {
     {"NICK", "nick", &Server::Nick},         {"USER", "user", &Server::User},
@@ -28,8 +29,12 @@ Server::Server(const char *port, const char *password)
 		throw invalid_argument(strerror(errno));
 
 	// https://stackoverflow.com/questions/21515946/what-is-sol-socket-used-for
-	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-	               &opt, sizeof(opt)))
+	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEADDR,
+               &opt, sizeof(opt)) < 0)
+		throw invalid_argument(strerror(errno));
+
+	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEPORT,
+				&opt, sizeof(opt)) < 0)
 		throw invalid_argument(strerror(errno));
 
 	// Settings for incoming connection from client
@@ -46,17 +51,17 @@ Server::Server(const char *port, const char *password)
 		throw invalid_argument(strerror(errno));
 
 	// create the server pollfd description
-	const pollfd server = {
-	    .fd = _server_socket,
-	    .events = POLLIN,
-	    .revents = 0,
-	};
+	pollfd server;
+
+	server.fd = _server_socket;
+	server.events = POLLIN;
+	server.revents = 0;
 
 	_pollfds.push_back(server);
 	_addrlen = sizeof(_address);
 
 	// enable passive listening of our server with 3 inside the queue
-	if (listen(_server_socket, 3))
+	if (listen(_server_socket, 3) < 0)
 		throw invalid_argument(strerror(errno));
 }
 
@@ -66,7 +71,10 @@ void Server::Run() {
 	while (true) {
 		const int res = poll(&_pollfds[0], _pollfds.size(), 300);
 
-		if (!res)
+		if (res < 0)
+			throw runtime_error("poll failed");
+
+		if (res == 0)
 			continue;
 
 		if (_pollfds[0].revents & POLLIN)
@@ -102,19 +110,30 @@ void Server::ProcessClient(const short client_event, int &i) {
 }
 
 void Server::ConnectClient() {
-	_socket_in_use = accept(_server_socket,
-	                        reinterpret_cast<sockaddr *>(&_address), &_addrlen);
+	sockaddr_in client_address;
+	socklen_t client_addrlen = sizeof(client_address);
+
+	_socket_in_use = accept(
+		_server_socket,
+		reinterpret_cast<sockaddr *>(&client_address),
+		&client_addrlen
+	);
+
 	if (_socket_in_use < 0)
 		throw std::runtime_error(strerror(errno));
 
-	const pollfd pollfd = {
-	    .fd = _socket_in_use,
-	    .events = POLLIN,
-	    .revents = 0,
-	};
+	if (fcntl(_socket_in_use, F_SETFL, O_NONBLOCK) < 0) {
+		close(_socket_in_use);
+		throw runtime_error("failed to set client socket non-blocking");
+	}
 
-	_clients[_socket_in_use] = Client(_address);
-	_pollfds.push_back(pollfd);
+	pollfd client_pollfd;
+	client_pollfd.fd = _socket_in_use;
+	client_pollfd.events = POLLIN;
+	client_pollfd.revents = 0;
+
+	_clients[_socket_in_use] = Client(client_address);
+	_pollfds.push_back(client_pollfd);
 	_connected_clients++;
 }
 
@@ -133,12 +152,6 @@ void Server::HandleRecv() {
 
 void Server::RunCommand(Client &client) {
 	vector<string> args = client.CreateArgs();
-
-	// // [DEBUG]
-	// cout << "----- PARSER -----" << endl;
-	// for (size_t i = 0; i < args.size(); ++i)
-	// 	cout << "args[" << i << "] = [" << args[i] << "]" << endl;
-	// cout << "------------------" << endl;
 
 	if (args.empty())
 		return;

@@ -99,6 +99,9 @@ void Server::ProcessClient(const short client_event, int &i) {
 			Client &client = _clients[_socket_in_use];
 			while (client.HasPendingCommand()) RunCommand(client);
 		}
+
+		if (client_event & POLLOUT)
+			HandleSend();
 	} catch (const Client::Close &c) {
 		cout << "Client " << _clients[_socket_in_use] << c.what() << endl;
 		close(_socket_in_use);
@@ -169,8 +172,56 @@ void Server::RunCommand(Client &client) {
 		}
 
 	if (!has_hit)
-		return Response::Send(_socket_in_use, StatusCode::ERR_UNKNOWNCOMMAND,
-		                      cmd + " :Unknown command");
+	QueueMessage(_socket_in_use,
+				Response::Build(StatusCode::ERR_UNKNOWNCOMMAND,
+		            cmd + " :Unknown command"));
+}
+
+void Server::EnablePollout(int fd) {
+	for (size_t i = 1; i < _pollfds.size(); ++i) {
+		if (_pollfds[i].fd == fd) {
+			_pollfds[i].events |= POLLOUT;
+			return;
+		}
+	}
+}
+
+void Server::QueueMessage(int fd, const string &message) {
+	_clients[fd].QueueOutput(message);
+	EnablePollout(fd);
+}
+
+void Server::HandleSend() {
+	Client &client = _clients[_socket_in_use];
+
+	if (!client.HasPendingOutput())
+		return;
+
+	const string &buffer = client.GetOutputBuffer();
+
+	const ssize_t sent = send(
+		_socket_in_use,
+		buffer.c_str(),
+		buffer.size(),
+		0
+	);
+
+	if (sent < 0)
+		throw Client::Close();
+
+	client.ConsumeOutput(static_cast<size_t>(sent));
+
+	if (!client.HasPendingOutput())
+	DisablePollout(_socket_in_use);
+}
+
+void Server::DisablePollout(int fd) {
+	for (size_t i = 1; i < _pollfds.size(); ++i) {
+		if (_pollfds[i].fd == fd) {
+			_pollfds[i].events &= ~POLLOUT;
+			return;
+		}
+	}
 }
 
 Server::~Server() {}

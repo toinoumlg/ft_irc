@@ -3,27 +3,20 @@
 static const string CR_LF = "\r\n";
 static const string LOCALHOST = ":127.0.0.1";
 
-void Response::Send(int socket, const string& command) {
-	const string to_send = LOCALHOST + " " + command + CR_LF;
-	send(socket, to_send.c_str(), to_send.size(), 0);
+string Response::Build(const string &command) {
+	return LOCALHOST + " " + command + CR_LF;
 }
 
-void Response::Send(const int socket, const string& status_code,
-                    const string& message) {
-	const string to_send =
-	    LOCALHOST + " " + status_code + " " + message + CR_LF;
-	send(socket, to_send.c_str(), to_send.size(), 0);
+string Response::Build(const string &status_code, const string &message) {
+	return LOCALHOST + " " + status_code + " " + message + CR_LF;
 }
 
-void Response::SendPrivate(const int socket, const string& command,
-                           const string& message, const string& from) {
-	const string to_send = ":" + from + " " + command + ":" + message + CR_LF;
-	send(socket, to_send.c_str(), to_send.size(), 0);
+string Response::BuildPrivate(const string &command, const string &message,
+                              const string &from) {
+	return ":" + from + " " + command + " :" + message + CR_LF;
 }
 
-void Response::SendFrom(const int socket, const string& command,
-                        const string& message, const string& from) {
-	const string to_send =
-	    from + "@" + LOCALHOST + " " + command + " " + message + CR_LF;
-	send(socket, to_send.c_str(), to_send.size(), 0);
+string Response::BuildFrom(const string &command, const string &message,
+                           const string &from) {
+	return from + " " + command + " " + message + CR_LF;
 }

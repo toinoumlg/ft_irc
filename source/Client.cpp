@@ -90,6 +90,22 @@ vector<string> Client::ParseLine(const string &line) const {
 	return result;
 }
 
+void Client::QueueOutput(const string &message) {
+	_output_buffer += message;
+}
+
+bool Client::HasPendingOutput() const {
+	return !_output_buffer.empty();
+}
+
+const string &Client::GetOutputBuffer() const {
+	return _output_buffer;
+}
+
+void Client::ConsumeOutput(size_t size) {
+	_output_buffer.erase(0, size);
+}
+
 
 // Identity
 

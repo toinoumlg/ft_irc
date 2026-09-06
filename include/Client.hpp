@@ -16,6 +16,7 @@ const int MAX_BUFFER_SIZE = 512;
 class Client {
 	private:
 		string _buffer;
+		string _output_buffer;
 		sockaddr_in _client_addr;
 
 		string _user;
@@ -49,6 +50,10 @@ class Client {
 		void PushBuffer(uint8_t *c, const size_t &size);
 		bool HasPendingCommand() const;
 		vector<string> CreateArgs();
+		void QueueOutput(const string &message);
+		bool HasPendingOutput() const;
+		const string &GetOutputBuffer() const;
+		void ConsumeOutput(size_t size);
 
 		// Client identity
 		string Identity() const;

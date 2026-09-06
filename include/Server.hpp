@@ -60,6 +60,11 @@ class Server {
 
 	void Quit(vector<string> &, Client &);
 
+	void EnablePollout(int fd);
+	void QueueMessage(int fd, const string &message);
+	void HandleSend();
+	void DisablePollout(int fd);
+
 	int _server_socket;
 	int _socket_in_use;
 	int _connected_clients;

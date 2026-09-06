@@ -17,28 +17,28 @@
 
 ## 2. IRC Connection
 ### PASS
-- [ ] **In progress: (toinou)** parse `PASS`
-- [ ] Validate number of parameters
-- [ ] Compare password with server password
-- [ ] Reject incorrect password
-- [ ] Reject `PASS` if client is already registered
+- [x] Parse `PASS`
+- [x] Validate number of parameters
+- [x] Compare password with server password
+- [x] Reject incorrect password
+- [x] Reject `PASS` if client is already registered
 - [ ] Send correct IRC errors
 
 ### NICK
-- [ ] **In progress: (toinou)** parse `NICK`
-- [ ] Store nickname
-- [ ] Reject missing nickname
-- [ ] Reject invalid nickname
-- [ ] Detect nickname already in use
-- [ ] Allow nickname changes after registration
+- [x] Parse `NICK`
+- [x] Store nickname
+- [x] Reject missing nickname
+- [x] Reject invalid nickname
+- [x] Detect nickname already in use
+- [x] Allow nickname changes after registration
 - [ ] Notify relevant users when nickname changes
 
 ### USER
-- [ ] **In progress: (toinou)** parse `USER`
-- [ ] Validate parameters
-- [ ] Store username
-- [ ] Store real name
-- [ ] Reject `USER` if client is already registered
+- [x] Parse `USER`
+- [x] Validate parameters
+- [x] Store username
+- [x] Store real name
+- [x] Reject `USER` if client is already registered
 
 ### Registration State
 - [ ] Track password validation
@@ -165,26 +165,26 @@
 - [ ] Reject `JOIN` when channel is full
 
 ## 9. Buffering / Fragmented Messages
-- [ ] **In progress:** fragmented command reception
-- [ ] Keep incomplete data between `recv()` calls
-- [ ] Detect `\r\n`
-- [ ] Extract one complete command at a time
-- [ ] Handle several commands in one `recv()`
-- [ ] Keep remaining incomplete data in the client buffer
+- [x] Fragmented command reception
+- [x] Keep incomplete data between `recv()` calls
+- [x] Detect `\r\n`
+- [x] Extract one complete command at a time
+- [x] Handle several commands in one `recv()`
+- [x] Keep remaining incomplete data in the client buffer
 
 ## 10. Non-Blocking Output
-- [ ] Proper outgoing-message buffering
-- [ ] Handle partial `send()`
-- [ ] Use `POLLOUT` when data is waiting to be sent
-- [ ] Remove sent data from output buffer
-- [ ] Avoid blocking writes
+- [x] Proper outgoing-message buffering
+- [x] Handle partial `send()`
+- [x] Use `POLLOUT` when data is waiting to be sent
+- [x] Remove sent data from output buffer
+- [x] Avoid blocking writes
 
 ## 11. Client Disconnection / Cleanup
-- [ ] Detect closed connection
-- [ ] Handle `recv()` returning `0`
-- [ ] Remove fd from `poll`
-- [ ] Close client fd
-- [ ] Remove client from client container
+- [x] Detect closed connection
+- [x] Handle `recv()` returning `0`
+- [x] Remove fd from `poll`
+- [x] Close client fd
+- [x] Remove client from client container
 - [ ] Remove client from every joined channel
 - [ ] Update operator/member lists
 - [ ] Avoid invalid references after removal

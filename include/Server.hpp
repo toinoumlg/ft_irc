@@ -64,6 +64,7 @@ class Server {
 
 	void SendChannelNames(Channel &channel, Client &client);
 	void RemoveClientFromChannels(int fd);
+	void NotifyQuit(int fd, const string& reason);
 
 	void EnablePollout(int fd);
 	void QueueMessage(int fd, const string &message);

@@ -1,8 +1,10 @@
 #include "Server.hpp"
+#include "Constants.hpp"
 
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -106,6 +108,7 @@ void Server::ProcessClient(const short client_event, int& i) {
 	} catch (const Client::Close& c) {
 		cout << "Client " << _clients[_socket_in_use] << c.what() << endl;
 
+		NotifyQuit(_socket_in_use, "Client Quit");
 		RemoveClientFromChannels(_socket_in_use);
 
 		close(_socket_in_use);
@@ -230,6 +233,37 @@ void Server::RemoveClientFromChannels(int fd) {
 			_channels.erase(_channels.begin() + i);
 		else
 			++i;
+	}
+}
+
+void Server::NotifyQuit(int fd, const string& reason) {
+	ClientMap::iterator client = _clients.find(fd);
+
+	if (client == _clients.end())
+		return;
+
+	const string message =
+	    client->second.Identity() + " QUIT :" + reason + CR_LF;
+
+	vector<int> notified;
+
+	for (size_t i = 0; i < _channels.size(); ++i) {
+		if (!_channels[i].HasClient(fd))
+			continue;
+
+		const vector<int>& members = _channels[i].GetClients();
+
+		for (size_t j = 0; j < members.size(); ++j) {
+			if (members[j] == fd)
+				continue;
+
+			if (find(notified.begin(), notified.end(), members[j]) !=
+			    notified.end())
+				continue;
+
+			QueueMessage(members[j], message);
+			notified.push_back(members[j]);
+		}
 	}
 }
 

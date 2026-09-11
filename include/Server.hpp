@@ -63,6 +63,7 @@ class Server {
 	void Quit(vector<string> &, Client &);
 
 	void SendChannelNames(Channel &channel, Client &client);
+	void RemoveClientFromChannels(int fd);
 
 	void EnablePollout(int fd);
 	void QueueMessage(int fd, const string &message);

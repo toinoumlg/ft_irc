@@ -1,19 +1,20 @@
 #include "Server.hpp"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <fcntl.h>
 #include <iostream>
-#include <unistd.h>
 
 const Server::CommandEntry Server::_commands[] = {
-    {"NICK", "nick", &Server::Nick},         	{"USER", "user", &Server::User},
-    {"QUIT", "quit", &Server::Quit},         	{"CAP", "cap", &Server::Cap},
-    {"PING", "ping", &Server::Ping},         	{"PASS", "pass", &Server::Pass},
-    {"PRIVMSG", "privmsg", &Server::Privmsg},	{"JOIN", "join", &Server::Join}};
+    {"NICK", "nick", &Server::Nick},          {"USER", "user", &Server::User},
+    {"QUIT", "quit", &Server::Quit},          {"CAP", "cap", &Server::Cap},
+    {"PING", "ping", &Server::Ping},          {"PASS", "pass", &Server::Pass},
+    {"PRIVMSG", "privmsg", &Server::Privmsg}, {"JOIN", "join", &Server::Join}};
 
-Server::Server(const char *port, const char *password)
+Server::Server(const char* port, const char* password)
     : _socket_in_use(0),
       _connected_clients(0),
       _port(port),
@@ -29,12 +30,12 @@ Server::Server(const char *port, const char *password)
 		throw invalid_argument(strerror(errno));
 
 	// https://stackoverflow.com/questions/21515946/what-is-sol-socket-used-for
-	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEADDR,
-               &opt, sizeof(opt)) < 0)
+	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEADDR, &opt,
+	               sizeof(opt)) < 0)
 		throw invalid_argument(strerror(errno));
 
-	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEPORT,
-				&opt, sizeof(opt)) < 0)
+	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEPORT, &opt,
+	               sizeof(opt)) < 0)
 		throw invalid_argument(strerror(errno));
 
 	// Settings for incoming connection from client
@@ -46,7 +47,7 @@ Server::Server(const char *port, const char *password)
 	_address.sin_port = htons(strtol(_port.c_str(), NULL, 10));
 
 	// apply the settings on our server socket (bind())
-	if (bind(_server_socket, reinterpret_cast<sockaddr *>(&_address),
+	if (bind(_server_socket, reinterpret_cast<sockaddr*>(&_address),
 	         sizeof(_address)) < 0)
 		throw invalid_argument(strerror(errno));
 
@@ -88,7 +89,7 @@ void Server::Run() {
 	}
 }
 
-void Server::ProcessClient(const short client_event, int &i) {
+void Server::ProcessClient(const short client_event, int& i) {
 	try {
 		if (client_event & (POLLERR | POLLHUP | POLLNVAL))
 			throw Client::Close();
@@ -96,14 +97,17 @@ void Server::ProcessClient(const short client_event, int &i) {
 		if (client_event & POLLIN) {
 			HandleRecv();
 
-			Client &client = _clients[_socket_in_use];
+			Client& client = _clients[_socket_in_use];
 			while (client.HasPendingCommand()) RunCommand(client);
 		}
 
 		if (client_event & POLLOUT)
 			HandleSend();
-	} catch (const Client::Close &c) {
+	} catch (const Client::Close& c) {
 		cout << "Client " << _clients[_socket_in_use] << c.what() << endl;
+
+		RemoveClientFromChannels(_socket_in_use);
+
 		close(_socket_in_use);
 		_clients.erase(_clients.find(_socket_in_use));
 		_pollfds.erase(_pollfds.begin() + i + 1);
@@ -116,11 +120,9 @@ void Server::ConnectClient() {
 	sockaddr_in client_address;
 	socklen_t client_addrlen = sizeof(client_address);
 
-	_socket_in_use = accept(
-		_server_socket,
-		reinterpret_cast<sockaddr *>(&client_address),
-		&client_addrlen
-	);
+	_socket_in_use =
+	    accept(_server_socket, reinterpret_cast<sockaddr*>(&client_address),
+		       &client_addrlen);
 
 	if (_socket_in_use < 0)
 		throw std::runtime_error(strerror(errno));
@@ -153,7 +155,7 @@ void Server::HandleRecv() {
 	_clients[_socket_in_use].PushBuffer(recv_buffer, recv_size);
 }
 
-void Server::RunCommand(Client &client) {
+void Server::RunCommand(Client& client) {
 	vector<string> args = client.CreateArgs();
 
 	if (args.empty())
@@ -172,9 +174,9 @@ void Server::RunCommand(Client &client) {
 		}
 
 	if (!has_hit)
-	QueueMessage(_socket_in_use,
-				Response::Build(StatusCode::ERR_UNKNOWNCOMMAND,
-		            cmd + " :Unknown command"));
+		QueueMessage(_socket_in_use,
+		             Response::Build(StatusCode::ERR_UNKNOWNCOMMAND,
+		                             cmd + " :Unknown command"));
 }
 
 void Server::EnablePollout(int fd) {
@@ -186,25 +188,20 @@ void Server::EnablePollout(int fd) {
 	}
 }
 
-void Server::QueueMessage(int fd, const string &message) {
+void Server::QueueMessage(int fd, const string& message) {
 	_clients[fd].QueueOutput(message);
 	EnablePollout(fd);
 }
 
 void Server::HandleSend() {
-	Client &client = _clients[_socket_in_use];
+	Client& client = _clients[_socket_in_use];
 
 	if (!client.HasPendingOutput())
 		return;
 
-	const string &buffer = client.GetOutputBuffer();
+	const string& buffer = client.GetOutputBuffer();
 
-	const ssize_t sent = send(
-		_socket_in_use,
-		buffer.c_str(),
-		buffer.size(),
-		0
-	);
+	const ssize_t sent = send(_socket_in_use, buffer.c_str(), buffer.size(), 0);
 
 	if (sent < 0)
 		throw Client::Close();
@@ -212,7 +209,7 @@ void Server::HandleSend() {
 	client.ConsumeOutput(static_cast<size_t>(sent));
 
 	if (!client.HasPendingOutput())
-	DisablePollout(_socket_in_use);
+		DisablePollout(_socket_in_use);
 }
 
 void Server::DisablePollout(int fd) {
@@ -221,6 +218,18 @@ void Server::DisablePollout(int fd) {
 			_pollfds[i].events &= ~POLLOUT;
 			return;
 		}
+	}
+}
+
+void Server::RemoveClientFromChannels(int fd) {
+	for (size_t i = 0; i < _channels.size();) {
+		if (_channels[i].HasClient(fd))
+			_channels[i].RemoveClient(fd);
+
+		if (_channels[i].IsEmpty())
+			_channels.erase(_channels.begin() + i);
+		else
+			++i;
 	}
 }
 

@@ -58,7 +58,11 @@ class Server {
 
 	void Privmsg(vector<string> &args, Client &client);
 
+	void Join(vector<string> &args, Client &client);
+
 	void Quit(vector<string> &, Client &);
+
+	void SendChannelNames(Channel &channel, Client &client);
 
 	void EnablePollout(int fd);
 	void QueueMessage(int fd, const string &message);

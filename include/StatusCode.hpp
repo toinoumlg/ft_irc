@@ -27,10 +27,15 @@ class StatusCode {
 	// PRIVMSG related
 	static const string ERR_NORECIPIENT;
 	static const string ERR_NOTEXTTOSEND;
+	static const string ERR_NOSUCHCHANNEL;
 	static const string ERR_CANNOTSENDTOCHAN;
 	static const string ERR_NOTOPLEVEL;
 	static const string ERR_WILDTOPLEVEL;
 	static const string ERR_TOOMANYTARGETS;
 	static const string ERR_NOSUCHNICK;
 	static const string RPL_AWAY;
+
+	// JOIN / NAMES related
+	static const string RPL_NAMREPLY;
+	static const string RPL_ENDOFNAMES;
 };

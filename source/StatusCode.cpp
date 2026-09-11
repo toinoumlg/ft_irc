@@ -17,9 +17,14 @@ const string StatusCode::ERR_NICKNAMEINUSE = "462 ERR_NICKNAMEINUSE";
 
 const string StatusCode::ERR_NORECIPIENT = "411 ERR_NORECIPIENT";
 const string StatusCode::ERR_NOTEXTTOSEND = "412 ERR_NOTEXTTOSEND";
+const string StatusCode::ERR_NOSUCHCHANNEL = "403 ERR_NOSUCHCHANNEL";
 const string StatusCode::ERR_CANNOTSENDTOCHAN = "404 ERR_CANNOTSENDTOCHAN";
 const string StatusCode::ERR_NOTOPLEVEL = "413 ERR_NOTOPLEVEL";
 const string StatusCode::ERR_WILDTOPLEVEL = "414 ERR_WILDTOPLEVEL";
 const string StatusCode::ERR_TOOMANYTARGETS = "407 ERR_TOOMANYTARGETS";
 const string StatusCode::ERR_NOSUCHNICK = "401 ERR_NOSUCHNICK";
 const string StatusCode::RPL_AWAY = "301 RPL_AWAY";
+
+
+const string StatusCode::RPL_NAMREPLY = "353 RPL_NAMREPLY";
+const string StatusCode::RPL_ENDOFNAMES = "366 RPL_ENDOFNAMES";

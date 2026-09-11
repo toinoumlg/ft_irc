@@ -67,12 +67,12 @@
 - [x] Handle missing message
 
 ### Client → Channel
-- [ ] Detect channel target
-- [ ] Find channel
-- [ ] Verify sender permissions
-- [ ] Broadcast message to channel members
-- [ ] Do not broadcast the message back to the sender
-- [ ] Handle unknown channel
+- [x] Detect channel target
+- [x] Find channel
+- [x] Verify sender permissions
+- [x] Broadcast message to channel members
+- [x] Do not broadcast the message back to the sender
+- [x] Handle unknown channel
 
 ## 5. Channels
 ### Channel Class

@@ -8,10 +8,10 @@
 #include <unistd.h>
 
 const Server::CommandEntry Server::_commands[] = {
-    {"NICK", "nick", &Server::Nick},         {"USER", "user", &Server::User},
-    {"QUIT", "quit", &Server::Quit},         {"CAP", "cap", &Server::Cap},
-    {"PING", "ping", &Server::Ping},         {"PASS", "pass", &Server::Pass},
-    {"PRIVMSG", "privmsg", &Server::Privmsg}};
+    {"NICK", "nick", &Server::Nick},         	{"USER", "user", &Server::User},
+    {"QUIT", "quit", &Server::Quit},         	{"CAP", "cap", &Server::Cap},
+    {"PING", "ping", &Server::Ping},         	{"PASS", "pass", &Server::Pass},
+    {"PRIVMSG", "privmsg", &Server::Privmsg},	{"JOIN", "join", &Server::Join}};
 
 Server::Server(const char *port, const char *password)
     : _socket_in_use(0),

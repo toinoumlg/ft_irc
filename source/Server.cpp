@@ -14,7 +14,8 @@ const Server::CommandEntry Server::_commands[] = {
     {"NICK", "nick", &Server::Nick},          {"USER", "user", &Server::User},
     {"QUIT", "quit", &Server::Quit},          {"CAP", "cap", &Server::Cap},
     {"PING", "ping", &Server::Ping},          {"PASS", "pass", &Server::Pass},
-    {"PRIVMSG", "privmsg", &Server::Privmsg}, {"JOIN", "join", &Server::Join}};
+    {"PRIVMSG", "privmsg", &Server::Privmsg}, {"JOIN", "join", &Server::Join},
+    {"KICK", "kick", &Server::Kick}};
 
 Server::Server(const char* port, const char* password)
     : _socket_in_use(0),

@@ -59,6 +59,8 @@ class Server {
 	void Privmsg(vector<string> &args, Client &client);
 
 	void Join(vector<string> &args, Client &client);
+	
+	void Kick(vector<string>& args, Client& client);
 
 	void Quit(vector<string> &, Client &);
 

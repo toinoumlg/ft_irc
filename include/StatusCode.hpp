@@ -38,4 +38,8 @@ class StatusCode {
 	// JOIN / NAMES related
 	static const string RPL_NAMREPLY;
 	static const string RPL_ENDOFNAMES;
+
+	static const string ERR_USERNOTINCHANNEL;
+	static const string ERR_NOTONCHANNEL;
+	static const string ERR_CHANOPRIVSNEEDED;
 };

@@ -28,3 +28,7 @@ const string StatusCode::RPL_AWAY = "301 RPL_AWAY";
 
 const string StatusCode::RPL_NAMREPLY = "353 RPL_NAMREPLY";
 const string StatusCode::RPL_ENDOFNAMES = "366 RPL_ENDOFNAMES";
+
+const string StatusCode::ERR_USERNOTINCHANNEL = "441 ERR_USERNOTINCHANNEL";
+const string StatusCode::ERR_NOTONCHANNEL = "442 ERR_NOTONCHANNEL";
+const string StatusCode::ERR_CHANOPRIVSNEEDED = "482 ERR_CHANOPRIVSNEEDED";

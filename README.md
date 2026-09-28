@@ -9,3 +9,5 @@
 ### Additional Resources
 
 * [chirc — Example IRC Communications](http://chi.cs.uchicago.edu/chirc/irc_examples.html)
+* [attente multiples en c](https://yunes.informatique.univ-paris-diderot.fr/wp-content/uploads/cours/RESEAU/065-C-NIO.pdf)
+* [IRC References](https://dd.ircdocs.horse/refs/)

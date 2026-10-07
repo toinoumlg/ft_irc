@@ -64,7 +64,7 @@
 - [x] Forward message to destination
 - [x] Handle unknown nickname
 - [x] Handle missing recipient
-- [x] Handle missing message
+- [ ] Handle missing message
 
 ### Client → Channel
 - [x] Detect channel target
@@ -77,48 +77,48 @@
 ## 5. Channels
 ### Channel Class
 - [ ] **In progress:** `Channel` class
-- [ ] Channel name
-- [ ] Members
-- [ ] Channel operators
-- [ ] Topic
-- [ ] Invitations
+- [x] Channel name
+- [x] Members
+- [x] Channel operators
+- [x] Topic
+- [x] Invitations
 - [ ] Password/key
 - [ ] User limit
 - [ ] Channel modes
 
 ### JOIN
-- [ ] Parse `JOIN`
-- [ ] Find existing channel
-- [ ] Create channel when necessary
-- [ ] Add user to channel
-- [ ] Make channel creator an operator
-- [ ] Broadcast `JOIN` to channel members
-- [ ] Send topic information
-- [ ] Send channel member list
+- [x] Parse `JOIN`
+- [x] Find existing channel
+- [x] Create channel when necessary
+- [x] Add user to channel
+- [x] Make channel creator an operator
+- [x] Broadcast `JOIN` to channel members
+- [x] Send topic information
+- [x] Send channel member list
 - [ ] Check channel modes before allowing entry
 
 ### User Removal / Channel Lifetime
-- [ ] Remove users from channels correctly
-- [ ] Remove disconnected clients from every channel
-- [ ] Remove empty channels when appropriate
-- [ ] Keep operator lists consistent
+- [x] Remove users from channels correctly
+- [x] Remove disconnected clients from every channel
+- [x] Remove empty channels when appropriate
+- [x] Keep operator lists consistent
 
 ## 6. Channel Operators
-- [ ] Assign operator status to channel creator
-- [ ] Store operator status
-- [ ] Check operator permissions before privileged commands
+- [x] Assign operator status to channel creator
+- [x] Store operator status
+- [x] Check operator permissions before privileged commands
 - [ ] Support operator promotion/removal with `MODE +/-o`
 
 ## 7. Operator Commands
 ### KICK
-- [ ] Parse `KICK`
-- [ ] Check that channel exists
-- [ ] Check that sender is in channel
-- [ ] Check operator privileges
-- [ ] Check that target user exists
-- [ ] Check that target user belongs to channel
-- [ ] Broadcast `KICK`
-- [ ] Remove user from channel
+- [x] Parse `KICK`
+- [x] Check that channel exists
+- [x] Check that sender is in channel
+- [x] Check operator privileges
+- [x] Check that target user exists
+- [x] Check that target user belongs to channel
+- [x] Broadcast `KICK`
+- [x] Remove user from channel
 
 ### INVITE
 - [x] Parse `INVITE`
@@ -185,20 +185,20 @@
 - [x] Remove fd from `poll`
 - [x] Close client fd
 - [x] Remove client from client container
-- [ ] Remove client from every joined channel
-- [ ] Update operator/member lists
+- [x] Remove client from every joined channel
+- [x] Update operator/member lists
 - [ ] Avoid invalid references after removal
 
 ## 12. Final Tests
-- [ ] Multiple clients
+- [x] Multiple clients
 - [ ] Fragmented / multiple commands
 - [ ] Client disconnection
 - [ ] All required commands and modes
-- [ ] Reference IRC client
+- [x] Reference IRC client
 
 ## 13. C++98 / Project Requirements
 - [ ] Check C++98 compatibility
-- [ ] Check flags
+- [x] Check flags
 - [ ] No forbidden functions
 - [ ] No blocking server operations
 - [ ] Check file descriptor cleanup

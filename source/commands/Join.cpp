@@ -2,6 +2,14 @@
 #include "Server.hpp"
 
 void Server::Join(vector<string>& args, Client& client) {
+	if (!client.IsRegistered()) {
+		const string nickname =
+		    client.GetNickname().empty() ? "*" : client.GetNickname();
+		QueueMessage(_socket_in_use,
+		             Response::Build(StatusCode::ERR_NOTREGISTERED,
+		                             nickname + " :You have not registered"));
+		return;
+	}
 	if (args.empty())
 		return;
 
@@ -12,7 +20,18 @@ void Server::Join(vector<string>& args, Client& client) {
 			if (_channels[i].HasClient(_socket_in_use))
 				return;
 
+			if (_channels[i].IsInviteOnly() &&
+			    !_channels[i].IsInvited(_socket_in_use)) {
+				QueueMessage(
+				    _socket_in_use,
+				    Response::Build(StatusCode::ERR_INVITEONLYCHAN,
+				                    client.GetNickname() + " " + channel_name +
+				                        " :Cannot join channel (+i)"));
+				return;
+			}
+
 			_channels[i].AddClient(_socket_in_use);
+			_channels[i].RemoveInvitation(_socket_in_use);
 
 			const vector<int>& members = _channels[i].GetClients();
 
@@ -20,6 +39,8 @@ void Server::Join(vector<string>& args, Client& client) {
 				QueueMessage(members[j], client.Identity() + " JOIN " +
 				                             channel_name + CR_LF);
 
+			if (!_channels[i].GetTopic().empty())
+				SendChannelTopic(_channels[i], client);
 			SendChannelNames(_channels[i], client);
 			return;
 		}
@@ -55,10 +76,10 @@ void Server::SendChannelNames(Channel& channel, Client& client) {
 	QueueMessage(
 	    _socket_in_use,
 	    Response::Build(StatusCode::RPL_NAMREPLY + " " + client.GetNickname(),
-		                "= " + channel.GetName() + " :" + names));
+	                    "= " + channel.GetName() + " :" + names));
 
 	QueueMessage(
 	    _socket_in_use,
 	    Response::Build(StatusCode::RPL_ENDOFNAMES + " " + client.GetNickname(),
-		                channel.GetName() + " :End of /NAMES list"));
+	                    channel.GetName() + " :End of /NAMES list"));
 }

@@ -1,5 +1,4 @@
 #include "Server.hpp"
-#include "Constants.hpp"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -10,12 +9,21 @@
 #include <cstring>
 #include <iostream>
 
+#include "Constants.hpp"
+
 const Server::CommandEntry Server::_commands[] = {
-    {"NICK", "nick", &Server::Nick},          {"USER", "user", &Server::User},
-    {"QUIT", "quit", &Server::Quit},          {"CAP", "cap", &Server::Cap},
-    {"PING", "ping", &Server::Ping},          {"PASS", "pass", &Server::Pass},
-    {"PRIVMSG", "privmsg", &Server::Privmsg}, {"JOIN", "join", &Server::Join},
-    {"KICK", "kick", &Server::Kick}};
+    {"NICK", "nick", &Server::Nick},
+    {"USER", "user", &Server::User},
+    {"QUIT", "quit", &Server::Quit},
+    {"CAP", "cap", &Server::Cap},
+    {"PING", "ping", &Server::Ping},
+    {"PASS", "pass", &Server::Pass},
+    {"PRIVMSG", "privmsg", &Server::Privmsg},
+    {"JOIN", "join", &Server::Join},
+    {"KICK", "kick", &Server::Kick},
+    {"TOPIC", "topic", &Server::Topic},
+    {"INVITE", "invite", &Server::Invite},
+    {"MODE", "mode", &Server::Mode}};
 
 Server::Server(const char* port, const char* password)
     : _socket_in_use(0),
@@ -227,6 +235,7 @@ void Server::DisablePollout(int fd) {
 
 void Server::RemoveClientFromChannels(int fd) {
 	for (size_t i = 0; i < _channels.size();) {
+		_channels[i].RemoveInvitation(fd);
 		if (_channels[i].HasClient(fd))
 			_channels[i].RemoveClient(fd);
 

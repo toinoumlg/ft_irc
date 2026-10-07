@@ -64,6 +64,11 @@ class Server {
 
 	void Quit(vector<string> &, Client &);
 
+	void Topic(vector<string>& args, Client& client);
+	void Invite(vector<string>& args, Client& client);
+	void Mode(vector<string>& args, Client& client);
+	void SendChannelTopic(Channel& channel, Client& client);
+
 	void SendChannelNames(Channel &channel, Client &client);
 	void RemoveClientFromChannels(int fd);
 	void NotifyQuit(int fd, const string& reason);

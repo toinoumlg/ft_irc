@@ -32,3 +32,14 @@ const string StatusCode::RPL_ENDOFNAMES = "366 RPL_ENDOFNAMES";
 const string StatusCode::ERR_USERNOTINCHANNEL = "441 ERR_USERNOTINCHANNEL";
 const string StatusCode::ERR_NOTONCHANNEL = "442 ERR_NOTONCHANNEL";
 const string StatusCode::ERR_CHANOPRIVSNEEDED = "482 ERR_CHANOPRIVSNEEDED";
+
+const string StatusCode::RPL_NOTOPIC = "331";
+const string StatusCode::RPL_TOPIC = "332";
+const string StatusCode::ERR_NOTREGISTERED = "451";
+
+const string StatusCode::RPL_INVITING = "341";
+const string StatusCode::ERR_USERONCHANNEL = "443";
+const string StatusCode::ERR_INVITEONLYCHAN = "473";
+
+const string StatusCode::RPL_CHANNELMODEIS = "324";
+const string StatusCode::ERR_UNKNOWNMODE = "472";

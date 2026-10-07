@@ -121,30 +121,30 @@
 - [ ] Remove user from channel
 
 ### INVITE
-- [ ] Parse `INVITE`
-- [ ] Check target user
-- [ ] Check channel
-- [ ] Check permissions
-- [ ] Store invitation when required
-- [ ] Notify invited user
+- [x] Parse `INVITE`
+- [x] Check target user
+- [x] Check channel
+- [x] Check permissions
+- [x] Store invitation when required
+- [x] Notify invited user
 
 ### TOPIC
-- [ ] Read current topic
-- [ ] Set new topic
-- [ ] Clear topic
-- [ ] Enforce `+t`
-- [ ] Broadcast topic changes
+- [x] Read current topic
+- [x] Set new topic
+- [x] Clear topic
+- [x] Enforce `+t`
+- [x] Broadcast topic changes
 
 ## 8. Channel Modes
 ### `MODE i` — Invite Only
-- [ ] `+i`
-- [ ] `-i`
-- [ ] Reject non-invited users when `+i`
+- [x] `+i`
+- [x] `-i`
+- [x] Reject non-invited users when `+i`
 
 ### `MODE t` — Topic Restriction
-- [ ] `+t`
-- [ ] `-t`
-- [ ] Restrict topic modification to operators when enabled
+- [x] `+t`
+- [x] `-t`
+- [x] Restrict topic modification to operators when enabled
 
 ### `MODE k` — Channel Key
 - [ ] `+k <password>`

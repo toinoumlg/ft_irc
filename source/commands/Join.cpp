@@ -2,48 +2,45 @@
 #include "Server.hpp"
 
 void Server::Join(vector<string>& args, Client& client) {
-	if (!client.IsRegistered()) {
-		const string nickname =
-		    client.GetNickname().empty() ? "*" : client.GetNickname();
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_NOTREGISTERED,
-		                             nickname + " :You have not registered"));
-		return;
-	}
 	if (args.empty())
 		return;
 
-	const string channel_name = args[0];
+	const string& channel_name = args[0];
 
-	for (size_t i = 0; i < _channels.size(); ++i) {
-		if (_channels[i].GetName() == channel_name) {
-			if (_channels[i].HasClient(_socket_in_use))
-				return;
+	if (!Channel::IsValidName(channel_name)) {
+		QueueMessage(_socket_in_use,
+		             Response::Build(StatusCode::ERR_NOSUCHCHANNEL,
+		                             channel_name + " :No such channel"));
+		return;
+	}
 
-			if (_channels[i].IsInviteOnly() &&
-			    !_channels[i].IsInvited(_socket_in_use)) {
-				QueueMessage(
-				    _socket_in_use,
-				    Response::Build(StatusCode::ERR_INVITEONLYCHAN,
-				                    client.GetNickname() + " " + channel_name +
-				                        " :Cannot join channel (+i)"));
-				return;
-			}
-
-			_channels[i].AddClient(_socket_in_use);
-			_channels[i].RemoveInvitation(_socket_in_use);
-
-			const vector<int>& members = _channels[i].GetClients();
-
-			for (size_t j = 0; j < members.size(); ++j)
-				QueueMessage(members[j], client.Identity() + " JOIN " +
-				                             channel_name + CR_LF);
-
-			if (!_channels[i].GetTopic().empty())
-				SendChannelTopic(_channels[i], client);
-			SendChannelNames(_channels[i], client);
+	Channel& channel = GetChannelByName(channel_name);
+	if (&channel != &*_channels.end()) {
+		if (channel.IsInviteOnly() && !channel.IsInvited(_socket_in_use)) {
+			QueueMessage(
+			    _socket_in_use,
+			    Response::Build(StatusCode::ERR_INVITEONLYCHAN,
+			                    client.GetNickname() + " " + channel_name +
+			                        " :Cannot join channel (+i)"));
 			return;
 		}
+
+		if (channel.HasClient(_socket_in_use))
+			return;
+
+		channel.AddClient(_socket_in_use);
+		channel.RemoveInvitation(_socket_in_use);
+
+		const vector<int>& members = channel.GetClients();
+
+		for (size_t j = 0; j < members.size(); ++j)
+			QueueMessage(members[j],
+			             client.Identity() + " JOIN " + channel_name + CR_LF);
+
+		if (!channel.GetTopic().empty())
+			SendChannelTopic(channel, client);
+		SendChannelNames(channel, client);
+		return;
 	}
 
 	_channels.push_back(Channel(channel_name, _socket_in_use));

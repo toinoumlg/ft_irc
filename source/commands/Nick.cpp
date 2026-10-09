@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cctype>
+
 #include "Response.hpp"
 #include "Server.hpp"
 #include "StatusCode.hpp"

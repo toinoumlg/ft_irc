@@ -10,6 +10,13 @@ Channel::Channel(const std::string& name, int creator_fd)
 
 Channel::~Channel() {}
 
+bool Channel::IsValidName(const std::string& name) {
+	return !name.empty() &&
+	       (name[0] == '#' || name[0] == '+' || name[0] == '!' ||
+	        name[0] == '&') &&
+	       name.size() < 50;
+}
+
 const std::string& Channel::GetName() const {
 	return _name;
 }

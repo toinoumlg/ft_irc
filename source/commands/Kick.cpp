@@ -11,8 +11,8 @@ void Server::Kick(vector<string>& args, Client& client) {
 		return;
 	}
 
-	const string channel_name = args[0];
-	const string target_nick = args[1];
+	const string& channel_name = args[0];
+	const string& target_nick = args[1];
 
 	for (size_t i = 0; i < _channels.size(); ++i) {
 		if (_channels[i].GetName() != channel_name)
@@ -27,10 +27,11 @@ void Server::Kick(vector<string>& args, Client& client) {
 		}
 
 		if (!_channels[i].IsOperator(_socket_in_use)) {
-			QueueMessage(_socket_in_use,
-			             Response::Build(StatusCode::ERR_CHANOPRIVSNEEDED +
-			                                 " " + channel_name,
-			                             ":You're not channel operator"));
+			QueueMessage(
+			    _socket_in_use,
+			    Response::Build(StatusCode::ERR_CHANOPRIVSNEEDED + ' ' +
+			                        client.GetNickname() + ' ' + channel_name,
+			                    ":You're not channel operator"));
 			return;
 		}
 
@@ -48,8 +49,8 @@ void Server::Kick(vector<string>& args, Client& client) {
 			QueueMessage(
 			    _socket_in_use,
 			    Response::Build(StatusCode::ERR_USERNOTINCHANNEL + " " +
-				                    target_nick + " " + channel_name,
-				                ":They aren't on that channel"));
+			                        client.GetNickname() + " " + channel_name,
+			                    ":They aren't on that channel"));
 			return;
 		}
 

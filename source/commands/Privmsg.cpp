@@ -11,39 +11,31 @@ void Server::Privmsg(std::vector<std::string> &args, Client &client) {
 		return;
 	}
 
-	if (!args[0].empty() && args[0][0] == '#') {
-		for (size_t i = 0; i < _channels.size(); ++i) {
-			if (_channels[i].GetName() == args[0]) {
-
-				if (!_channels[i].HasClient(_socket_in_use)) {
-					QueueMessage(_socket_in_use,
-								Response::Build(StatusCode::ERR_CANNOTSENDTOCHAN + " " + args[0],
-												"Cannot send to channel"));
-					return;
-				}
-
-				const string message =
-					client.Identity() + " PRIVMSG " +
-					args[0] + " :" + args[1] + CR_LF;
-
-				const vector<int> &members = _channels[i].GetClients();
-
-				for (size_t j = 0; j < members.size(); ++j) {
-					if (members[j] != _socket_in_use)
-						QueueMessage(members[j], message);
-				}
-
-				return;
-			}
+	Channel &channel = GetChannelByName(args[0]);
+	if (&channel != &*_channels.end() && channel.HasClient(_socket_in_use)) {
+		if (!channel.HasClient(_socket_in_use)) {
+			QueueMessage(_socket_in_use,
+			             Response::Build(
+			                 StatusCode::ERR_CANNOTSENDTOCHAN + " " + args[0],
+			                 "Cannot send to channel"));
+			return;
 		}
 
-		QueueMessage(_socket_in_use,
-					Response::Build(StatusCode::ERR_NOSUCHCHANNEL + " " + args[0],
-									"No such channel"));
-	return;
+		const string message =
+		    client.Identity() + " PRIVMSG " + args[0] + " :" + args[1] + CR_LF;
+
+		const vector<int> &members = channel.GetClients();
+
+		for (size_t j = 0; j < members.size(); ++j) {
+			if (members[j] != _socket_in_use) {
+				QueueMessage(members[j], message);
+			}
+		}
+		return;
 	}
 
-	for (ClientMap::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+	for (ClientMap::iterator it = _clients.begin(); it != _clients.end();
+	     ++it) {
 		if (it->second.GetNickname() == args[0]) {
 			const string message = ":" + client.GetNickname() + " PRIVMSG " +
 			                       args[0] + " :" + args[1] + CR_LF;

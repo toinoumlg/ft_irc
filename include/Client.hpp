@@ -14,58 +14,54 @@ using namespace std;
 const int MAX_BUFFER_SIZE = 512;
 
 class Client {
-	private:
-		string _buffer;
-		string _output_buffer;
-		sockaddr_in _client_addr;
+   private:
+	string _buffer;
+	string _output_buffer;
+	sockaddr_in _client_addr;
 
-		string _user;
-		string _nickname;
-		string _alias;
-		string _fullname;
-		string _mode;
+	string _user;
+	string _nickname;
+	string _alias;
+	string _fullname;
+	string _mode;
 
-		bool _has_set_pwd;
-		bool _is_registered;
+	bool _has_set_pwd;
+	bool _is_registered;
 
-		vector<string> ParseLine(const string &line) const;
+	vector<string> ParseLine(const string &line) const;
 
-	public:
-		class Close : public exception {
-			public:
-				const char *what() const throw() {
-					return " disconnected";
-				}
-		};
+   public:
+	class Close : public exception {};
+	class Disconnect : public exception {};
 
-		Client();
-		Client(const sockaddr_in &clientAddr);
-		~Client();
+	Client();
+	Client(const sockaddr_in &clientAddr);
+	~Client();
 
-		// Connection
-		const char *Address() const;
-		in_port_t Port() const;
+	// Connection
+	const char *Address() const;
+	in_port_t Port() const;
 
-		// IRC buffer / parsing
-		void PushBuffer(uint8_t *c, const size_t &size);
-		bool HasPendingCommand() const;
-		vector<string> CreateArgs();
-		void QueueOutput(const string &message);
-		bool HasPendingOutput() const;
-		const string &GetOutputBuffer() const;
-		void ConsumeOutput(size_t size);
+	// IRC buffer / parsing
+	void PushBuffer(uint8_t *c, const size_t &size);
+	bool HasPendingCommand() const;
+	vector<string> CreateArgs();
+	void QueueOutput(const string &message);
+	bool HasPendingOutput() const;
+	const string &GetOutputBuffer() const;
+	void ConsumeOutput(size_t size);
 
-		// Client identity
-		string Identity() const;
+	// Client identity
+	string Identity() const;
 
 	const string &GetNickname() const;
 	void SetNickname(const string &value);
 
-		string &GetUser();
-		void SetUser(vector<string> &values);
+	string &GetUser();
+	void SetUser(vector<string> &values);
 
-		string &GetAlias();
-		void SetAlias(const string &value);
+	string &GetAlias();
+	void SetAlias(const string &value);
 
 	// Registration
 	void SetPassword(bool value);

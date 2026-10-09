@@ -17,6 +17,8 @@ class Channel {
 	Channel(const std::string& name, int creator_fd);
 	~Channel();
 
+	static bool IsValidName(const std::string& name);
+
 	const std::string& GetName() const;
 
 	bool HasClient(int fd) const;

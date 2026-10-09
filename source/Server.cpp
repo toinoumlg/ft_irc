@@ -8,22 +8,18 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <string>
+#include <variant>
 
 #include "Constants.hpp"
 
 const Server::CommandEntry Server::_commands[] = {
-    {"NICK", "nick", &Server::Nick},
-    {"USER", "user", &Server::User},
-    {"QUIT", "quit", &Server::Quit},
-    {"CAP", "cap", &Server::Cap},
-    {"PING", "ping", &Server::Ping},
-    {"PASS", "pass", &Server::Pass},
-    {"PRIVMSG", "privmsg", &Server::Privmsg},
-    {"JOIN", "join", &Server::Join},
-    {"KICK", "kick", &Server::Kick},
-    {"TOPIC", "topic", &Server::Topic},
-    {"INVITE", "invite", &Server::Invite},
-    {"MODE", "mode", &Server::Mode}};
+    {"NICK", false, &Server::Nick},      {"USER", false, &Server::User},
+    {"PASS", false, &Server::Pass},      {"CAP", false, &Server::Cap},
+    {"QUIT", true, &Server::Quit},       {"PING", true, &Server::Ping},
+    {"PRIVMSG", true, &Server::Privmsg}, {"JOIN", true, &Server::Join},
+    {"KICK", true, &Server::Kick},       {"TOPIC", true, &Server::Topic},
+    {"INVITE", true, &Server::Invite},   {"MODE", true, &Server::Mode}};
 
 Server::Server(const char* port, const char* password)
     : _socket_in_use(0),
@@ -123,6 +119,21 @@ void Server::ProcessClient(const short client_event, int& i) {
 		_pollfds.erase(_pollfds.begin() + i + 1);
 		_connected_clients--;
 		i--;
+	} catch (const Client::Disconnect&) {
+		QueueMessage(_socket_in_use,
+		             Response::Build(StatusCode::ERR_PASSWDMISMATCH,
+		                             "* :Password incorrect"));
+		QueueMessage(
+		    _socket_in_use,
+		    Response::Build("ERROR", ":Closing link (password incorrect)"));
+
+		while (_clients[_socket_in_use].HasPendingOutput()) HandleSend();
+
+		close(_socket_in_use);
+		_clients.erase(_clients.find(_socket_in_use));
+		_pollfds.erase(_pollfds.begin() + i + 1);
+		_connected_clients--;
+		i--;
 	}
 }
 
@@ -171,22 +182,31 @@ void Server::RunCommand(Client& client) {
 	if (args.empty())
 		return;
 
-	bool has_hit = false;
-	const string cmd = args[0];
+	string cmd;
+	for (string::const_iterator it = args[0].begin(); it != args[0].end(); ++it)
+		cmd += static_cast<char>(toupper(*it));
+
 	args.erase(args.begin());
 	const int max = sizeof(_commands) / sizeof(_commands[0]);
-
 	for (int i = 0; i < max; ++i)
-		if (cmd == _commands[i].lower || cmd == _commands[i].upper) {
+		if (cmd == _commands[i].name) {
+			if (_commands->needsRegistration && !client.IsRegistered()) {
+				const string nickname =
+				    client.GetNickname().empty() ? "*" : client.GetNickname();
+				return QueueMessage(
+				    _socket_in_use,
+				    Response::Build(StatusCode::ERR_NOTREGISTERED,
+				                    nickname + " :You have not registered"));
+			}
+
 			(this->*_commands[i].handler)(args, client);
-			has_hit = true;
-			break;
+			return;
 		}
 
-	if (!has_hit)
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_UNKNOWNCOMMAND,
-		                             cmd + " :Unknown command"));
+	QueueMessage(_socket_in_use,
+	             Response::Build(
+	                 StatusCode::ERR_UNKNOWNCOMMAND,
+	                 client.GetNickname() + " " + cmd + " :Unknown command"));
 }
 
 void Server::EnablePollout(int fd) {
@@ -231,11 +251,11 @@ void Server::DisablePollout(int fd) {
 	}
 }
 
-void Server::RemoveClientFromChannels(int fd) {
+void Server::RemoveClientFromChannels() {
 	for (size_t i = 0; i < _channels.size();) {
-		_channels[i].RemoveInvitation(fd);
-		if (_channels[i].HasClient(fd))
-			_channels[i].RemoveClient(fd);
+		_channels[i].RemoveInvitation(_socket_in_use);
+		if (_channels[i].HasClient(_socket_in_use))
+			_channels[i].RemoveClient(_socket_in_use);
 
 		if (_channels[i].IsEmpty())
 			_channels.erase(_channels.begin() + i);
@@ -251,22 +271,20 @@ void Server::NotifyWelcome() {
 	                                 " :Welcome to a random IRC server !"));
 }
 
-	if (client == _clients.end())
-		return;
-
+void Server::NotifyQuit(const string& reason) {
 	const string message =
-	    client->second.Identity() + " QUIT :" + reason + CR_LF;
+	    _clients[_socket_in_use].Identity() + " QUIT :" + reason + CR_LF;
 
 	vector<int> notified;
 
 	for (size_t i = 0; i < _channels.size(); ++i) {
-		if (!_channels[i].HasClient(fd))
+		if (!_channels[i].HasClient(_socket_in_use))
 			continue;
 
 		const vector<int>& members = _channels[i].GetClients();
 
 		for (size_t j = 0; j < members.size(); ++j) {
-			if (members[j] == fd)
+			if (members[j] == _socket_in_use)
 				continue;
 
 			if (find(notified.begin(), notified.end(), members[j]) !=
@@ -277,6 +295,14 @@ void Server::NotifyWelcome() {
 			notified.push_back(members[j]);
 		}
 	}
+}
+
+Channel& Server::GetChannelByName(const string& name) {
+	for (vector<Channel>::iterator it = _channels.begin();
+	     it != _channels.end(); ++it)
+		if (it->GetName() == name)
+			return *it;
+	return *_channels.end();
 }
 
 Server::~Server() {}

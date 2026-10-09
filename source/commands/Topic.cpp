@@ -4,22 +4,12 @@
 #include "StatusCode.hpp"
 
 void Server::Topic(vector<string>& args, Client& client) {
-	const string nickname =
-	    client.GetNickname().empty() ? "*" : client.GetNickname();
-	// Older error constants include a label; IRC replies need only the digits.
-
-	if (!client.IsRegistered()) {
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_NOTREGISTERED,
-		                             nickname + " :You have not registered"));
-		return;
-	}
-
 	if (args.empty()) {
 		QueueMessage(
 		    _socket_in_use,
-		    Response::Build(StatusCode::ERR_NEEDMOREPARAMS.substr(0, 3),
-			                nickname + " TOPIC :Need more parameters"));
+		    Response::Build(
+		        StatusCode::ERR_NEEDMOREPARAMS.substr(0, 3),
+		        client.GetNickname() + " TOPIC :Need more parameters"));
 		return;
 	}
 
@@ -31,9 +21,9 @@ void Server::Topic(vector<string>& args, Client& client) {
 		if (!channel.HasClient(_socket_in_use)) {
 			QueueMessage(
 			    _socket_in_use,
-			    Response::Build(
-			        StatusCode::ERR_NOTONCHANNEL.substr(0, 3),
-			        nickname + " " + args[0] + " :You're not on that channel"));
+			    Response::Build(StatusCode::ERR_NOTONCHANNEL.substr(0, 3),
+			                    client.GetNickname() + " " + args[0] +
+			                        " :You're not on that channel"));
 			return;
 		}
 
@@ -47,8 +37,8 @@ void Server::Topic(vector<string>& args, Client& client) {
 			QueueMessage(
 			    _socket_in_use,
 			    Response::Build(StatusCode::ERR_CHANOPRIVSNEEDED.substr(0, 3),
-				                nickname + " " + args[0] +
-				                    " :You're not channel operator"));
+			                    client.GetNickname() + " " + args[0] +
+			                        " :You're not channel operator"));
 			return;
 		}
 
@@ -62,10 +52,10 @@ void Server::Topic(vector<string>& args, Client& client) {
 		return;
 	}
 
-	QueueMessage(
-	    _socket_in_use,
-	    Response::Build(StatusCode::ERR_NOSUCHCHANNEL.substr(0, 3),
-		                nickname + " " + args[0] + " :No such channel"));
+	QueueMessage(_socket_in_use,
+	             Response::Build(StatusCode::ERR_NOSUCHCHANNEL.substr(0, 3),
+	                             client.GetNickname() + " " + args[0] +
+	                                 " :No such channel"));
 }
 
 void Server::SendChannelTopic(Channel& channel, Client& client) {

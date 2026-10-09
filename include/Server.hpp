@@ -29,8 +29,8 @@ class Server {
 	typedef void (Server::*CommandHandler)(vector<string> &, Client &);
 
 	struct CommandEntry {
-		const char *upper;
-		const char *lower;
+		const char *name;
+		bool needsRegistration;
 		CommandHandler handler;
 	};
 
@@ -70,9 +70,10 @@ class Server {
 	void SendChannelTopic(Channel& channel, Client& client);
 
 	void SendChannelNames(Channel &channel, Client &client);
-	void RemoveClientFromChannels(int fd);
-	void NotifyQuit(int fd, const string& reason);
+	void RemoveClientFromChannels();
 	void NotifyWelcome();
+	void NotifyQuit(const string &reason);
+	Channel &GetChannelByName(const string &name);
 
 	void EnablePollout(int fd);
 	void QueueMessage(int fd, const string &message);

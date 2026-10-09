@@ -113,7 +113,7 @@ string Client::Identity() const {
 	return ":" + _nickname + "!~" + _user;
 }
 
-string &Client::GetNickname() {
+const string &Client::GetNickname() const {
 	return _nickname;
 }
 
@@ -150,8 +150,11 @@ bool Client::HasSetPassword() const {
 	return _has_set_pwd;
 }
 
-void Client::SetRegistered(bool value) {
-	_is_registered = value;
+bool Client::SetRegistered() {
+	if (!_nickname.empty() && _has_set_pwd && !_user.empty() &&
+	    !_fullname.empty() && !_mode.empty())
+		_is_registered = true;
+	return _is_registered;
 }
 
 bool Client::IsRegistered() const {

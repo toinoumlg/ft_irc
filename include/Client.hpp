@@ -58,8 +58,8 @@ class Client {
 		// Client identity
 		string Identity() const;
 
-		string &GetNickname();
-		void SetNickname(const string &value);
+	const string &GetNickname() const;
+	void SetNickname(const string &value);
 
 		string &GetUser();
 		void SetUser(vector<string> &values);
@@ -67,12 +67,11 @@ class Client {
 		string &GetAlias();
 		void SetAlias(const string &value);
 
-		// Registration
-		void SetPassword(bool value);
-		bool HasSetPassword() const;
-
-		void SetRegistered(bool value);
-		bool IsRegistered() const;
+	// Registration
+	void SetPassword(bool value);
+	bool HasSetPassword() const;
+	bool SetRegistered();
+	bool IsRegistered() const;
 };
 
 ostream &operator<<(ostream &stream, const Client &client);

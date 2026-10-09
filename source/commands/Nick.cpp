@@ -2,42 +2,60 @@
 #include "Server.hpp"
 #include "StatusCode.hpp"
 
-#include <cctype>
-
-void Server::Nick(std::vector<std::string> &args, Client &client) {
+void Server::Nick(vector<string> &args, Client &client) {
 	if (!client.HasSetPassword())
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_RESTRICTED,
-		                             ":Your connection is restricted"));
-	else if (args.empty())
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_NONICKNAMEGIVEN,
-		                             ":No nickname given"));
-	else if (HasInvalidChar(args[0]))
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_ERRONEUSNICKNAME,
-		                             args[0] + " :Erroneous nickname"));
-	else if (NicknameExists(args[0]))
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_NICKNAMEINUSE,
-		                             args[0] + " :Nickname already in use"));
-	else {
-		const string old_nick = client.GetNickname();
-		client.SetNickname(args[0]);
+		return QueueMessage(_socket_in_use,
+		                    Response::Build(StatusCode::ERR_NOTREGISTERED,
+		                                    "* :You have not registered"));
+	if (args.empty())
+		return QueueMessage(_socket_in_use,
+		                    Response::Build(StatusCode::ERR_NONICKNAMEGIVEN,
+		                                    ":No nickname given"));
+	if (HasInvalidChar(args[0]))
+		return QueueMessage(_socket_in_use,
+		                    Response::Build(StatusCode::ERR_ERRONEUSNICKNAME,
+		                                    args[0] + " :Erroneous nickname"));
+	if (NicknameExists(args[0]))
+		return QueueMessage(
+		    _socket_in_use,
+		    Response::Build(StatusCode::ERR_NICKNAMEINUSE,
+		                    args[0] + " :Nickname already in use"));
 
-		if (!old_nick.empty()) {
-			const string from = ":" + old_nick;
-			for (ClientMap::iterator it = _clients.begin(); it != _clients.end();
-			     ++it)
-				QueueMessage(it->first,
-				             Response::BuildFrom("NICK",
-				                                 ":" + client.GetNickname(), from));
+	const string old_nick = client.GetNickname();
+	client.SetNickname(args[0]);
+	if (!client.IsRegistered() && client.SetRegistered())
+		return NotifyWelcome();
+	if (!client.IsRegistered())
+		return;
+
+	const string from = ":" + old_nick;
+	const string message =
+	    Response::BuildFrom("NICK", ":" + client.GetNickname(), from);
+
+	vector<int> notified;
+	QueueMessage(_socket_in_use, message);
+	notified.push_back(_socket_in_use);
+
+	for (vector<Channel>::const_iterator channel_it = _channels.begin();
+	     channel_it != _channels.end(); ++channel_it) {
+		if (!channel_it->HasClient(_socket_in_use))
+			continue;
+
+		const vector<int> &channelClients = channel_it->GetClients();
+
+		for (vector<int>::const_iterator it = channelClients.begin();
+		     it != channelClients.end(); ++it) {
+			if (find(notified.begin(), notified.end(), *it) == notified.end()) {
+				QueueMessage(*it, message);
+				notified.push_back(*it);
+			}
 		}
 	}
 }
 
 bool Server::NicknameExists(const string &nickname) {
-	for (ClientMap::iterator it = _clients.begin(); it != _clients.end(); ++it)
+	for (ClientMap::const_iterator it = _clients.begin(); it != _clients.end();
+	     ++it)
 		if (it->second.GetNickname() == nickname)
 			return true;
 	return false;

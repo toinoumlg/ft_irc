@@ -114,11 +114,9 @@ void Server::ProcessClient(const short client_event, int& i) {
 
 		if (client_event & POLLOUT)
 			HandleSend();
-	} catch (const Client::Close& c) {
-		cout << "Client " << _clients[_socket_in_use] << c.what() << endl;
-
-		NotifyQuit(_socket_in_use, "Client Quit");
-		RemoveClientFromChannels(_socket_in_use);
+	} catch (const Client::Close&) {
+		NotifyQuit("Client Quit");
+		RemoveClientFromChannels();
 
 		close(_socket_in_use);
 		_clients.erase(_clients.find(_socket_in_use));
@@ -246,8 +244,12 @@ void Server::RemoveClientFromChannels(int fd) {
 	}
 }
 
-void Server::NotifyQuit(int fd, const string& reason) {
-	ClientMap::iterator client = _clients.find(fd);
+void Server::NotifyWelcome() {
+	QueueMessage(_socket_in_use,
+	             Response::Build(StatusCode::RPL_WELCOME,
+	                             _clients[_socket_in_use].GetNickname() +
+	                                 " :Welcome to a random IRC server !"));
+}
 
 	if (client == _clients.end())
 		return;

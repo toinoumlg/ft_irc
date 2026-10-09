@@ -2,36 +2,35 @@
 
 const string StatusCode::RPL_WELCOME = "001";
 
-const string StatusCode::ERR_UNKNOWNCOMMAND = "421 ERR_UNKNOWNCOMMAND";
+const string StatusCode::ERR_UNKNOWNCOMMAND = "421";
 
-const string StatusCode::ERR_NEEDMOREPARAMS = "461 ERR_NEEDMOREPARAMS";
-const string StatusCode::ERR_PASSWDMISMATCH = "464 ERR_PASSWDMISMATCH";
-const string StatusCode::ERR_ALREADYREGISTRED = "462 ERR_ALREADYREGISTRED";
+const string StatusCode::ERR_NEEDMOREPARAMS = "461";
+const string StatusCode::ERR_PASSWDMISMATCH = "464";
+const string StatusCode::ERR_ALREADYREGISTRED = "462";
 
-const string StatusCode::ERR_NONICKNAMEGIVEN = "462 ERR_NONICKNAMEGIVEN";
-const string StatusCode::ERR_ERRONEUSNICKNAME = "462 ERR_ERRONEUSNICKNAME";
-const string StatusCode::ERR_NICKCOLLISION = "462 ERR_NICKCOLLISION";
-const string StatusCode::ERR_RESTRICTED = "462 ERR_RESTRICTED";
-const string StatusCode::ERR_UNAVAILRESOURCE = "462 ERR_UNAVAILRESOURCE";
-const string StatusCode::ERR_NICKNAMEINUSE = "462 ERR_NICKNAMEINUSE";
+const string StatusCode::ERR_NONICKNAMEGIVEN = "431";
+const string StatusCode::ERR_ERRONEUSNICKNAME = "432";
+const string StatusCode::ERR_NICKCOLLISION = "436";
+const string StatusCode::ERR_RESTRICTED = "484";
+const string StatusCode::ERR_UNAVAILRESOURCE = "437";
+const string StatusCode::ERR_NICKNAMEINUSE = "433";
 
-const string StatusCode::ERR_NORECIPIENT = "411 ERR_NORECIPIENT";
-const string StatusCode::ERR_NOTEXTTOSEND = "412 ERR_NOTEXTTOSEND";
-const string StatusCode::ERR_NOSUCHCHANNEL = "403 ERR_NOSUCHCHANNEL";
-const string StatusCode::ERR_CANNOTSENDTOCHAN = "404 ERR_CANNOTSENDTOCHAN";
-const string StatusCode::ERR_NOTOPLEVEL = "413 ERR_NOTOPLEVEL";
-const string StatusCode::ERR_WILDTOPLEVEL = "414 ERR_WILDTOPLEVEL";
-const string StatusCode::ERR_TOOMANYTARGETS = "407 ERR_TOOMANYTARGETS";
-const string StatusCode::ERR_NOSUCHNICK = "401 ERR_NOSUCHNICK";
-const string StatusCode::RPL_AWAY = "301 RPL_AWAY";
+const string StatusCode::ERR_NORECIPIENT = "411";
+const string StatusCode::ERR_NOTEXTTOSEND = "412";
+const string StatusCode::ERR_NOSUCHCHANNEL = "403";
+const string StatusCode::ERR_CANNOTSENDTOCHAN = "404";
+const string StatusCode::ERR_NOTOPLEVEL = "413";
+const string StatusCode::ERR_WILDTOPLEVEL = "414";
+const string StatusCode::ERR_TOOMANYTARGETS = "407";
+const string StatusCode::ERR_NOSUCHNICK = "401";
+const string StatusCode::RPL_AWAY = "301";
 
+const string StatusCode::RPL_NAMREPLY = "353";
+const string StatusCode::RPL_ENDOFNAMES = "366";
 
-const string StatusCode::RPL_NAMREPLY = "353 RPL_NAMREPLY";
-const string StatusCode::RPL_ENDOFNAMES = "366 RPL_ENDOFNAMES";
-
-const string StatusCode::ERR_USERNOTINCHANNEL = "441 ERR_USERNOTINCHANNEL";
-const string StatusCode::ERR_NOTONCHANNEL = "442 ERR_NOTONCHANNEL";
-const string StatusCode::ERR_CHANOPRIVSNEEDED = "482 ERR_CHANOPRIVSNEEDED";
+const string StatusCode::ERR_USERNOTINCHANNEL = "441";
+const string StatusCode::ERR_NOTONCHANNEL = "442";
+const string StatusCode::ERR_CHANOPRIVSNEEDED = "482";
 
 const string StatusCode::RPL_NOTOPIC = "331";
 const string StatusCode::RPL_TOPIC = "332";

@@ -2,14 +2,15 @@
 
 // Constructors / Destructor
 
-Client::Client()
-	: _client_addr(), _has_set_pwd(false), _is_registered(false) {}
+Client::Client() : _client_addr(), _has_set_pwd(false), _is_registered(false) {}
 
 Client::Client(const sockaddr_in &clientAddr)
-	: _client_addr(clientAddr), _has_set_pwd(false), _is_registered(false) {}
+    : _client_addr(clientAddr),
+      _nickname("*"),
+      _has_set_pwd(false),
+      _is_registered(false) {}
 
 Client::~Client() {}
-
 
 // Connection
 
@@ -22,7 +23,6 @@ const char *Client::Address() const {
 in_port_t Client::Port() const {
 	return _client_addr.sin_port;
 }
-
 
 // IRC buffer / parsing
 
@@ -106,7 +106,6 @@ void Client::ConsumeOutput(size_t size) {
 	_output_buffer.erase(0, size);
 }
 
-
 // Identity
 
 string Client::Identity() const {
@@ -139,7 +138,6 @@ void Client::SetAlias(const string &value) {
 	_alias = value;
 }
 
-
 // Registration
 
 void Client::SetPassword(const bool value) {
@@ -160,7 +158,6 @@ bool Client::SetRegistered() {
 bool Client::IsRegistered() const {
 	return _is_registered;
 }
-
 
 // Stream operator
 

@@ -191,12 +191,11 @@ void Server::RunCommand(Client& client) {
 	for (int i = 0; i < max; ++i)
 		if (cmd == _commands[i].name) {
 			if (_commands->needsRegistration && !client.IsRegistered()) {
-				const string nickname =
-				    client.GetNickname().empty() ? "*" : client.GetNickname();
 				return QueueMessage(
 				    _socket_in_use,
-				    Response::Build(StatusCode::ERR_NOTREGISTERED,
-				                    nickname + " :You have not registered"));
+				    Response::Build(
+				        StatusCode::ERR_NOTREGISTERED,
+				        client.GetNickname() + " :You have not registered"));
 			}
 
 			(this->*_commands[i].handler)(args, client);

@@ -4,7 +4,7 @@ void Server::User(vector<string> &args, Client &client) {
 	if (!client.HasSetPassword())
 		return QueueMessage(_socket_in_use,
 		                    Response::Build(StatusCode::ERR_NOTREGISTERED,
-		                                    "* :You have not registered"));
+		                                    client.GetNickname() + " :You have not registered"));
 
 	if (args.size() < 4)
 		return QueueMessage(

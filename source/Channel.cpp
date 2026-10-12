@@ -3,9 +3,25 @@
 #include <algorithm>
 
 Channel::Channel(const std::string& name, int creator_fd)
-    : _name(name), _topic_restricted(false), _invite_only(false) {
+    : _name(name),
+      _topic_restricted(false),
+      _invite_only(false),
+      _max_client(0) {
 	_clients.push_back(creator_fd);
 	_operators.push_back(creator_fd);
+	SetModes();
+}
+
+Channel::Channel(const std::string& name, int creator_fd,
+                 const std::string& key)
+    : _name(name),
+      _key(key),
+      _topic_restricted(false),
+      _invite_only(false),
+      _max_client(0) {
+	_clients.push_back(creator_fd);
+	_operators.push_back(creator_fd);
+	SetModes();
 }
 
 Channel::~Channel() {}
@@ -104,4 +120,31 @@ void Channel::RemoveInvitation(int fd) {
 	    std::find(_invited.begin(), _invited.end(), fd);
 	if (it != _invited.end())
 		_invited.erase(it);
+}
+
+bool Channel::HasKey() const {
+	return !_key.empty();
+}
+
+void Channel::SetKey(const std::string& key) {
+	_key = key;
+}
+
+bool Channel::CheckKey(const std::string& key) const {
+	return key == _key;
+}
+
+void Channel::SetModes() {
+	std::string modes = "+";
+	if (IsInviteOnly())
+		modes += 'i';
+	if (IsTopicRestricted())
+		modes += 't';
+	if (HasKey())
+		modes += 'k';
+	_modes = modes;
+}
+
+std::string Channel::GetModes() const {
+	return _modes;
 }

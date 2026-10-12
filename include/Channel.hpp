@@ -6,15 +6,19 @@
 class Channel {
    private:
 	std::string _name;
+	std::string _key;
+	std::string _modes;
 	std::vector<int> _clients;
 	std::vector<int> _operators;
 	std::string _topic;
 	bool _topic_restricted;
 	std::vector<int> _invited;
 	bool _invite_only;
+	unsigned short _max_client;
 
    public:
 	Channel(const std::string& name, int creator_fd);
+	Channel(const std::string& name, int creator_fd, const std::string& key);
 	~Channel();
 
 	static bool IsValidName(const std::string& name);
@@ -43,4 +47,11 @@ class Channel {
 	void AddInvitation(int fd);
 	bool IsInvited(int fd) const;
 	void RemoveInvitation(int fd);
+
+	bool HasKey() const;
+	void SetKey(const std::string& key);
+	bool CheckKey(const std::string& key) const;
+
+	void SetModes();
+	std::string GetModes() const;
 };

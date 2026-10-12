@@ -1,54 +1,65 @@
-#include "Constants.hpp"
 #include "Server.hpp"
 
 void Server::Join(vector<string>& args, Client& client) {
 	if (args.empty())
 		return;
 
-	const string& channel_name = args[0];
+	map<string, string> channels_pairs = SplitChannelsAndKeys(args);
 
-	if (!Channel::IsValidName(channel_name)) {
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_NOSUCHCHANNEL,
-		                             channel_name + " :No such channel"));
-		return;
-	}
-
-	Channel& channel = GetChannelByName(channel_name);
-	if (&channel != &*_channels.end()) {
-		if (channel.IsInviteOnly() && !channel.IsInvited(_socket_in_use)) {
-			QueueMessage(
-			    _socket_in_use,
-			    Response::Build(StatusCode::ERR_INVITEONLYCHAN,
-			                    client.GetNickname() + " " + channel_name +
-			                        " :Cannot join channel (+i)"));
-			return;
+	for (map<string, string>::const_iterator pair = channels_pairs.begin();
+	     pair != channels_pairs.end(); ++pair) {
+		if (!Channel::IsValidName(pair->first)) {
+			QueueMessage(Response::Build(StatusCode::ERR_NOSUCHCHANNEL,
+			                             pair->first + " :No such channel"));
+			continue;
 		}
 
-		if (channel.HasClient(_socket_in_use))
-			return;
+		vector<Channel>::iterator it = GetChannelByName(pair->first);
+		if (it != _channels.end()) {
+			Channel& channel = *it;
 
-		channel.AddClient(_socket_in_use);
-		channel.RemoveInvitation(_socket_in_use);
+			if (channel.IsInviteOnly() && !channel.IsInvited(_socket_in_use)) {
+				QueueMessage(Response::Build(StatusCode::ERR_INVITEONLYCHAN,
+				                             client.GetNickname() + " " +
+				                                 pair->first +
+				                                 " :Cannot join channel (+i)"));
+				continue;
+			}
 
-		const vector<int>& members = channel.GetClients();
+			if (channel.HasKey() && !channel.CheckKey(pair->second)) {
+				QueueMessage(Response::Build(StatusCode::ERR_BADCHANNELKEY,
+				                             client.GetNickname() + " " +
+				                                 pair->first +
+				                                 " :Cannot join channel (+k)"));
+				continue;
+			}
 
-		for (size_t j = 0; j < members.size(); ++j)
-			QueueMessage(members[j],
-			             client.Identity() + " JOIN " + channel_name + CR_LF);
+			if (channel.HasClient(_socket_in_use))
+				continue;
 
-		if (!channel.GetTopic().empty())
-			SendChannelTopic(channel, client);
-		SendChannelNames(channel, client);
-		return;
+			channel.AddClient(_socket_in_use);
+			channel.RemoveInvitation(_socket_in_use);
+
+			BroadcastMessages(
+			    channel.GetClients(),
+			    Response::Build(client.Identity(), "JOIN", pair->first));
+
+			if (!channel.GetTopic().empty())
+				SendChannelTopic(channel, client);
+			SendChannelNames(channel, client);
+			continue;
+		}
+
+		if (pair->second.empty())
+			_channels.push_back(Channel(pair->first, _socket_in_use));
+		else
+			_channels.push_back(
+			    Channel(pair->first, _socket_in_use, pair->second));
+
+		QueueMessage(Response::Build(client.Identity(), "JOIN", pair->first));
+
+		SendChannelNames(_channels.back(), client);
 	}
-
-	_channels.push_back(Channel(channel_name, _socket_in_use));
-
-	QueueMessage(_socket_in_use,
-	             client.Identity() + " JOIN " + channel_name + CR_LF);
-
-	SendChannelNames(_channels.back(), client);
 }
 
 void Server::SendChannelNames(Channel& channel, Client& client) {
@@ -71,12 +82,10 @@ void Server::SendChannelNames(Channel& channel, Client& client) {
 	}
 
 	QueueMessage(
-	    _socket_in_use,
 	    Response::Build(StatusCode::RPL_NAMREPLY + " " + client.GetNickname(),
 	                    "= " + channel.GetName() + " :" + names));
 
 	QueueMessage(
-	    _socket_in_use,
 	    Response::Build(StatusCode::RPL_ENDOFNAMES + " " + client.GetNickname(),
 	                    channel.GetName() + " :End of /NAMES list"));
 }

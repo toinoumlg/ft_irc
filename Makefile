@@ -7,8 +7,8 @@ OBJECTS_DIR = build
 INCLUDE_DIR = include
 
 
-CMD_FILES = Pass Nick User Privmsg Join Quit Kick Ping Cap Topic Invite Mode
-CPP_FILES = main Client Server Channel Response StatusCode $(addprefix commands/, $(CMD_FILES))
+CMD_FILES = Pass Nick User Privmsg Join Quit Kick Ping Cap Topic Invite Mode Part
+CPP_FILES = main Client Server Channel Response StatusCode Broadcast $(addprefix commands/, $(CMD_FILES))
 SOURCES   = $(addprefix $(SOURCE_DIR)/, $(addsuffix .cpp, $(CPP_FILES)))
 OBJECTS   = $(patsubst $(SOURCE_DIR)/%.cpp, $(OBJECTS_DIR)/%.o, $(SOURCES))
 DEPS      = $(OBJECTS:.o=.d)

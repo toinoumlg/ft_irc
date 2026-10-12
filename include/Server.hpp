@@ -13,8 +13,6 @@
 #include "Response.hpp"
 #include "StatusCode.hpp"
 
-typedef map<int, Client> ClientMap;
-
 class Server {
    public:
 	Server(const char *port, const char *password);
@@ -57,10 +55,17 @@ class Server {
 	void Pass(vector<string> &args, Client &client);
 
 	void Privmsg(vector<string> &args, Client &client);
+	void BroadcastMessages(const vector<int> &members, const string &message);
+	void BroadcastMessages(const vector<int> &members,
+	                       const std::string &message, int fd);
+	void BroadcastMessages(const vector<int> &members,
+	                       const std::string &message, vector<int> &notified);
 
 	void Join(vector<string> &args, Client &client);
-	
-	void Kick(vector<string>& args, Client& client);
+
+	void Part(vector<string> &args, Client &client);
+
+	void Kick(vector<string> &args, Client &client);
 
 	void Quit(vector<string> &, Client &);
 
@@ -70,12 +75,16 @@ class Server {
 	void SendChannelTopic(Channel& channel, Client& client);
 
 	void SendChannelNames(Channel &channel, Client &client);
+	static vector<string> SplitChannels(string &args);
+	static map<string, string> SplitChannelsAndKeys(vector<string> &args);
 	void RemoveClientFromChannels();
 	void NotifyWelcome();
 	void NotifyQuit(const string &reason);
-	Channel &GetChannelByName(const string &name);
+	vector<Channel>::iterator GetChannelByName(const string &name);
+	int IsUserInChannel(const string &nickname, const vector<int> &members);
 
 	void EnablePollout(int fd);
+	void QueueMessage(const string &message);
 	void QueueMessage(int fd, const string &message);
 	void HandleSend();
 	void DisablePollout(int fd);

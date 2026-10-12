@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include <exception>
+#include <map>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -28,7 +29,7 @@ class Client {
 	bool _has_set_pwd;
 	bool _is_registered;
 
-	vector<string> ParseLine(const string &line) const;
+	static vector<string> ParseLine(const string &line);
 
    public:
 	class Close : public exception {};
@@ -69,5 +70,7 @@ class Client {
 	bool SetRegistered();
 	bool IsRegistered() const;
 };
+
+typedef map<int, Client> ClientMap;
 
 ostream &operator<<(ostream &stream, const Client &client);

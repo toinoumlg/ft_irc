@@ -60,7 +60,7 @@ vector<string> Client::CreateArgs() {
 	return ParseLine(line);
 }
 
-vector<string> Client::ParseLine(const string &line) const {
+vector<string> Client::ParseLine(const string &line) {
 	vector<string> result;
 	size_t pos = 0;
 
@@ -109,7 +109,7 @@ void Client::ConsumeOutput(size_t size) {
 // Identity
 
 string Client::Identity() const {
-	return ":" + _nickname + "!~" + _user;
+	return _nickname + '!' + _user;
 }
 
 const string &Client::GetNickname() const {
@@ -149,8 +149,8 @@ bool Client::HasSetPassword() const {
 }
 
 bool Client::SetRegistered() {
-	if (!_nickname.empty() && _has_set_pwd && !_user.empty() &&
-	    !_fullname.empty() && !_mode.empty())
+	if (_nickname != "*" && !_nickname.empty() && _has_set_pwd &&
+	    !_user.empty() && !_fullname.empty() && !_mode.empty())
 		_is_registered = true;
 	return _is_registered;
 }

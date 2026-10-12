@@ -42,6 +42,7 @@ class StatusCode {
 	static const string ERR_USERNOTINCHANNEL;
 	static const string ERR_NOTONCHANNEL;
 	static const string ERR_CHANOPRIVSNEEDED;
+	static const string ERR_BADCHANNELKEY;
 
 	// TOPIC related
 	static const string RPL_NOTOPIC;
@@ -56,4 +57,5 @@ class StatusCode {
 	// Channel MODE related
 	static const string RPL_CHANNELMODEIS;
 	static const string ERR_UNKNOWNMODE;
+	static const string ERR_CHANNELISFULL;
 };

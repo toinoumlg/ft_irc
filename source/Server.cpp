@@ -11,15 +11,14 @@
 #include <string>
 #include <variant>
 
-#include "Constants.hpp"
-
 const Server::CommandEntry Server::_commands[] = {
     {"NICK", false, &Server::Nick},      {"USER", false, &Server::User},
     {"PASS", false, &Server::Pass},      {"CAP", false, &Server::Cap},
     {"QUIT", true, &Server::Quit},       {"PING", true, &Server::Ping},
     {"PRIVMSG", true, &Server::Privmsg}, {"JOIN", true, &Server::Join},
     {"KICK", true, &Server::Kick},       {"TOPIC", true, &Server::Topic},
-    {"INVITE", true, &Server::Invite},   {"MODE", true, &Server::Mode}};
+    {"INVITE", true, &Server::Invite},   {"MODE", true, &Server::Mode},
+    {"PART", true, &Server::Part}};
 
 Server::Server(const char* port, const char* password)
     : _socket_in_use(0),
@@ -190,22 +189,17 @@ void Server::RunCommand(Client& client) {
 	const int max = sizeof(_commands) / sizeof(_commands[0]);
 	for (int i = 0; i < max; ++i)
 		if (cmd == _commands[i].name) {
-			if (_commands->needsRegistration && !client.IsRegistered()) {
-				return QueueMessage(
-				    _socket_in_use,
-				    Response::Build(
-				        StatusCode::ERR_NOTREGISTERED,
-				        client.GetNickname() + " :You have not registered"));
-			}
+			if (_commands[i].needsRegistration && !client.IsRegistered())
+				return QueueMessage(Response::Build(
+				    StatusCode::ERR_NOTREGISTERED,
+				    client.GetNickname() + " :You have not registered"));
 
-			(this->*_commands[i].handler)(args, client);
-			return;
+			return (this->*_commands[i].handler)(args, client);
 		}
 
-	QueueMessage(_socket_in_use,
-	             Response::Build(
-	                 StatusCode::ERR_UNKNOWNCOMMAND,
-	                 client.GetNickname() + " " + cmd + " :Unknown command"));
+	QueueMessage(Response::Build(
+	    StatusCode::ERR_UNKNOWNCOMMAND,
+	    client.GetNickname() + " " + cmd + " :Unknown command"));
 }
 
 void Server::EnablePollout(int fd) {
@@ -215,11 +209,6 @@ void Server::EnablePollout(int fd) {
 			return;
 		}
 	}
-}
-
-void Server::QueueMessage(int fd, const string& message) {
-	_clients[fd].QueueOutput(message);
-	EnablePollout(fd);
 }
 
 void Server::HandleSend() {
@@ -264,44 +253,85 @@ void Server::RemoveClientFromChannels() {
 }
 
 void Server::NotifyWelcome() {
-	QueueMessage(_socket_in_use,
-	             Response::Build(StatusCode::RPL_WELCOME,
+	QueueMessage(Response::Build(StatusCode::RPL_WELCOME,
 	                             _clients[_socket_in_use].GetNickname() +
 	                                 " :Welcome to a random IRC server !"));
 }
 
 void Server::NotifyQuit(const string& reason) {
-	const string message =
-	    _clients[_socket_in_use].Identity() + " QUIT :" + reason + CR_LF;
+	const string message = Response::Build(_clients[_socket_in_use].Identity(),
+	                                       "QUIT", ':' + reason);
 
 	vector<int> notified;
+	notified.push_back(_socket_in_use);
 
-	for (size_t i = 0; i < _channels.size(); ++i) {
-		if (!_channels[i].HasClient(_socket_in_use))
-			continue;
-
-		const vector<int>& members = _channels[i].GetClients();
-
-		for (size_t j = 0; j < members.size(); ++j) {
-			if (members[j] == _socket_in_use)
-				continue;
-
-			if (find(notified.begin(), notified.end(), members[j]) !=
-			    notified.end())
-				continue;
-
-			QueueMessage(members[j], message);
-			notified.push_back(members[j]);
-		}
-	}
+	for (size_t i = 0; i < _channels.size(); ++i)
+		if (_channels[i].HasClient(_socket_in_use))
+			BroadcastMessages(_channels[i].GetClients(), message, notified);
 }
 
-Channel& Server::GetChannelByName(const string& name) {
+vector<Channel>::iterator Server::GetChannelByName(const string& name) {
 	for (vector<Channel>::iterator it = _channels.begin();
 	     it != _channels.end(); ++it)
 		if (it->GetName() == name)
-			return *it;
-	return *_channels.end();
+			return it;
+	return _channels.end();
+}
+
+int Server::IsUserInChannel(const string& nickname,
+                            const vector<int>& members) {
+	int fd = -1;
+	for (vector<int>::const_iterator member = members.begin();
+	     member != members.end(); ++member)
+		if (_clients[*member].GetNickname() == nickname)
+			return *member;
+	return fd;
+}
+
+vector<string> Server::SplitChannels(string& args) {
+	vector<string> channels;
+	while (args.begin() != args.end()) {
+		const size_t pos = args.find(',');
+		if (pos == string::npos) {
+			channels.push_back(args);
+			break;
+		}
+		channels.push_back(args.substr(0, pos));
+		args.erase(0, pos + 1);
+	}
+	return channels;
+}
+
+map<string, string> Server::SplitChannelsAndKeys(vector<string>& args) {
+	map<string, string> channels;
+	string& names = args[0];
+	while (names.begin() != names.end()) {
+		size_t pos = names.find(',');
+		if (pos == string::npos) {
+			channels[names];
+			break;
+		}
+		channels[names.substr(0, pos)];
+		names.erase(0, pos + 1);
+	}
+
+	if (args.size() == 1)
+		return channels;
+
+	string& keys = args[1];
+	map<string, string>::iterator it = channels.begin();
+	while (keys.begin() != keys.end() && it != channels.end()) {
+		size_t pos = keys.find(',');
+		if (pos == string::npos) {
+			it->second = keys;
+			break;
+		}
+		it->second = keys.substr(0, pos);
+		keys.erase(0, pos + 1);
+		++it;
+	}
+
+	return channels;
 }
 
 Server::~Server() {}

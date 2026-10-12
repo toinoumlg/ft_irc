@@ -26,34 +26,26 @@ void Server::Nick(vector<string> &args, Client &client) {
 		                    args[0] + " :Nickname already in use"));
 
 	const string old_nick = client.GetNickname();
+	const string old_ident = client.Identity();
 	client.SetNickname(args[0]);
 	if (!client.IsRegistered() && client.SetRegistered())
 		return NotifyWelcome();
 	if (!client.IsRegistered())
 		return;
 
-	const string from = ":" + old_nick;
 	const string message =
-	    Response::BuildFrom("NICK", ":" + client.GetNickname(), from);
+	    Response::Build(old_ident, "NICK", ":" + client.GetNickname());
 
 	vector<int> notified;
-	QueueMessage(_socket_in_use, message);
+	QueueMessage(message);
 	notified.push_back(_socket_in_use);
 
-	for (vector<Channel>::const_iterator channel_it = _channels.begin();
-	     channel_it != _channels.end(); ++channel_it) {
-		if (!channel_it->HasClient(_socket_in_use))
+	for (vector<Channel>::const_iterator channel = _channels.begin();
+	     channel != _channels.end(); ++channel) {
+		if (!channel->HasClient(_socket_in_use))
 			continue;
 
-		const vector<int> &channelClients = channel_it->GetClients();
-
-		for (vector<int>::const_iterator it = channelClients.begin();
-		     it != channelClients.end(); ++it) {
-			if (find(notified.begin(), notified.end(), *it) == notified.end()) {
-				QueueMessage(*it, message);
-				notified.push_back(*it);
-			}
-		}
+		BroadcastMessages(channel->GetClients(), message, notified);
 	}
 }
 

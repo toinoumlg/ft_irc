@@ -1,31 +1,50 @@
 #include "Server.hpp"
 
-#include <fcntl.h>
-#include <unistd.h>
-
-#include <algorithm>
-#include <cerrno>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <string>
-#include <variant>
+static volatile sig_atomic_t gSignalStatus;
 
 const Server::CommandEntry Server::_commands[] = {
     {"NICK", false, &Server::Nick},      {"USER", false, &Server::User},
     {"PASS", false, &Server::Pass},      {"CAP", false, &Server::Cap},
-    {"QUIT", true, &Server::Quit},       {"PING", true, &Server::Ping},
+    {"QUIT", false, &Server::Quit},      {"PING", true, &Server::Ping},
     {"PRIVMSG", true, &Server::Privmsg}, {"JOIN", true, &Server::Join},
     {"KICK", true, &Server::Kick},       {"TOPIC", true, &Server::Topic},
     {"INVITE", true, &Server::Invite},   {"MODE", true, &Server::Mode},
     {"PART", true, &Server::Part}};
 
-Server::Server(const char* port, const char* password)
+bool Server::CheckPort(const char* port) {
+	if (port == NULL || !isdigit(static_cast<unsigned char>(port[0])))
+		return false;
+	char* end = NULL;
+	errno = 0;
+	const long int value = strtol(port, &end, 10);
+	if (*end != '\0' || value < 1024 || value > 65535)
+		return false;
+	return true;
+}
+
+static void signal_handler(int signal) {
+	gSignalStatus = signal;
+}
+
+static void SetSignals() {
+	signal(SIGINT, signal_handler);
+	signal(SIGQUIT, signal_handler);
+	signal(SIGTERM, signal_handler);
+	signal(SIGPIPE, SIG_IGN);
+}
+
+static void CloseAndThrow(const int fd) {
+	const string error = strerror(errno);
+	close(fd);
+	throw invalid_argument(error);
+}
+
+Server::Server(const string& port, const string& password)
     : _socket_in_use(0),
       _connected_clients(0),
       _port(port),
-      _password(password),
-      _address() {
+      _password(password) {
+	SetSignals();
 	const int opt = 1;
 	// socket creation
 	// AF_INET = ipv4
@@ -38,24 +57,21 @@ Server::Server(const char* port, const char* password)
 	// https://stackoverflow.com/questions/21515946/what-is-sol-socket-used-for
 	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEADDR, &opt,
 	               sizeof(opt)) < 0)
-		throw invalid_argument(strerror(errno));
+		CloseAndThrow(_server_socket);
 
-	if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEPORT, &opt,
-	               sizeof(opt)) < 0)
-		throw invalid_argument(strerror(errno));
-
+	sockaddr_in address = {};
 	// Settings for incoming connection from client
 	// Acceptation ipv4 AF_INET
 	// From any address INADDR_ANY
 	// Only on one defined port => htons(atoi(port))
-	_address.sin_family = AF_INET;
-	_address.sin_addr.s_addr = INADDR_ANY;
-	_address.sin_port = htons(strtol(_port.c_str(), NULL, 10));
+	address.sin_family = AF_INET;
+	address.sin_addr.s_addr = INADDR_ANY;
+	address.sin_port = htons(strtol(_port.c_str(), NULL, 10));
 
 	// apply the settings on our server socket (bind())
-	if (bind(_server_socket, reinterpret_cast<sockaddr*>(&_address),
-	         sizeof(_address)) < 0)
-		throw invalid_argument(strerror(errno));
+	if (bind(_server_socket, reinterpret_cast<sockaddr*>(&address),
+	         sizeof(address)) < 0)
+		CloseAndThrow(_server_socket);
 
 	// create the server pollfd description
 	pollfd server;
@@ -65,21 +81,20 @@ Server::Server(const char* port, const char* password)
 	server.revents = 0;
 
 	_pollfds.push_back(server);
-	_addrlen = sizeof(_address);
 
 	// enable passive listening of our server with 3 inside the queue
 	if (listen(_server_socket, 3) < 0)
-		throw invalid_argument(strerror(errno));
+		CloseAndThrow(_server_socket);
 }
 
 const int MAX_LENGTH = 512;
 
 void Server::Run() {
-	while (true) {
+	while (gSignalStatus == 0) {
 		const int res = poll(&_pollfds[0], _pollfds.size(), 300);
 
 		if (res < 0)
-			throw runtime_error("poll failed");
+			throw runtime_error(strerror(errno));
 
 		if (res == 0)
 			continue;
@@ -96,44 +111,34 @@ void Server::Run() {
 }
 
 void Server::ProcessClient(const short client_event, int& i) {
-	try {
-		if (client_event & (POLLERR | POLLHUP | POLLNVAL))
-			throw Client::Close();
+	Client& client = _clients[_socket_in_use];
 
+	if (client_event & (POLLERR | POLLHUP | POLLNVAL))
+		client.MarkDead("Connection error");
+	else {
 		if (client_event & POLLIN) {
-			HandleRecv();
-
-			Client& client = _clients[_socket_in_use];
-			while (client.HasPendingCommand()) RunCommand(client);
+			HandleRecv(client);
+			while (!client.IsClosing() && client.HasPendingCommand())
+				RunCommand(client);
 		}
 
 		if (client_event & POLLOUT)
-			HandleSend();
-	} catch (const Client::Close&) {
-		NotifyQuit("Client Quit");
-		RemoveClientFromChannels();
-
-		close(_socket_in_use);
-		_clients.erase(_clients.find(_socket_in_use));
-		_pollfds.erase(_pollfds.begin() + i + 1);
-		_connected_clients--;
-		i--;
-	} catch (const Client::Disconnect&) {
-		QueueMessage(_socket_in_use,
-		             Response::Build(StatusCode::ERR_PASSWDMISMATCH,
-		                             "* :Password incorrect"));
-		QueueMessage(
-		    _socket_in_use,
-		    Response::Build("ERROR", ":Closing link (password incorrect)"));
-
-		while (_clients[_socket_in_use].HasPendingOutput()) HandleSend();
-
-		close(_socket_in_use);
-		_clients.erase(_clients.find(_socket_in_use));
-		_pollfds.erase(_pollfds.begin() + i + 1);
-		_connected_clients--;
-		i--;
+			HandleSend(client);
 	}
+	if (client.IsClosing())
+		DisablePollin(_socket_in_use);
+	if (client.ShouldClose())
+		RemoveClient(i);
+}
+
+void Server::RemoveClient(int& i) {
+	NotifyQuit();
+	RemoveClientFromChannels();
+	close(_socket_in_use);
+	_clients.erase(_clients.find(_socket_in_use));
+	_pollfds.erase(_pollfds.begin() + i + 1);
+	_connected_clients--;
+	i--;
 }
 
 void Server::ConnectClient() {
@@ -142,14 +147,14 @@ void Server::ConnectClient() {
 
 	_socket_in_use =
 	    accept(_server_socket, reinterpret_cast<sockaddr*>(&client_address),
-		       &client_addrlen);
+	           &client_addrlen);
 
 	if (_socket_in_use < 0)
-		throw std::runtime_error(strerror(errno));
+		return;
 
 	if (fcntl(_socket_in_use, F_SETFL, O_NONBLOCK) < 0) {
 		close(_socket_in_use);
-		throw runtime_error("failed to set client socket non-blocking");
+		return;
 	}
 
 	pollfd client_pollfd;
@@ -157,28 +162,28 @@ void Server::ConnectClient() {
 	client_pollfd.events = POLLIN;
 	client_pollfd.revents = 0;
 
-	_clients[_socket_in_use] = Client(client_address);
+	_clients[_socket_in_use];
 	_pollfds.push_back(client_pollfd);
 	_connected_clients++;
 }
 
-void Server::HandleRecv() {
+void Server::HandleRecv(Client& client) const {
 	uint8_t recv_buffer[MAX_LENGTH + 1];
 	const ssize_t recv_size = recv(_socket_in_use, recv_buffer, MAX_LENGTH, 0);
 
 	if (recv_size == 0)
-		throw Client::Close();
+		return client.MarkClosing("Client disconnect");
 
 	if (recv_size < 0)
-		throw runtime_error("failed recv for client");
+		return client.MarkDead("Read error");
 
-	_clients[_socket_in_use].PushBuffer(recv_buffer, recv_size);
+	client.PushBuffer(recv_buffer, recv_size);
 }
 
 void Server::RunCommand(Client& client) {
 	vector<string> args = client.CreateArgs();
 
-	if (args.empty())
+	if (args.empty() || args[0].empty())
 		return;
 
 	string cmd;
@@ -191,15 +196,30 @@ void Server::RunCommand(Client& client) {
 		if (cmd == _commands[i].name) {
 			if (_commands[i].needsRegistration && !client.IsRegistered())
 				return QueueMessage(Response::Build(
-				    StatusCode::ERR_NOTREGISTERED,
-				    client.GetNickname() + " :You have not registered"));
+				    ERR_NOTREGISTERED, client, ":You have not registered"));
 
 			return (this->*_commands[i].handler)(args, client);
 		}
 
-	QueueMessage(Response::Build(
-	    StatusCode::ERR_UNKNOWNCOMMAND,
-	    client.GetNickname() + " " + cmd + " :Unknown command"));
+	QueueMessage(
+	    Response::Build(ERR_UNKNOWNCOMMAND, client, cmd + " :Unknown command"));
+}
+
+void Server::HandleSend(Client& client) {
+	if (!client.HasPendingOutput())
+		return;
+
+	const string& buffer = client.GetOutputBuffer();
+
+	const ssize_t sent = send(_socket_in_use, buffer.c_str(), buffer.size(), 0);
+
+	if (sent < 0)
+		return client.MarkDead("Write error");
+
+	client.ConsumeOutput(static_cast<size_t>(sent));
+
+	if (!client.HasPendingOutput())
+		DisablePollout(_socket_in_use);
 }
 
 void Server::EnablePollout(int fd) {
@@ -211,29 +231,19 @@ void Server::EnablePollout(int fd) {
 	}
 }
 
-void Server::HandleSend() {
-	Client& client = _clients[_socket_in_use];
-
-	if (!client.HasPendingOutput())
-		return;
-
-	const string& buffer = client.GetOutputBuffer();
-
-	const ssize_t sent = send(_socket_in_use, buffer.c_str(), buffer.size(), 0);
-
-	if (sent < 0)
-		throw Client::Close();
-
-	client.ConsumeOutput(static_cast<size_t>(sent));
-
-	if (!client.HasPendingOutput())
-		DisablePollout(_socket_in_use);
-}
-
 void Server::DisablePollout(int fd) {
 	for (size_t i = 1; i < _pollfds.size(); ++i) {
 		if (_pollfds[i].fd == fd) {
 			_pollfds[i].events &= ~POLLOUT;
+			return;
+		}
+	}
+}
+
+void Server::DisablePollin(const int fd) {
+	for (size_t i = 1; i < _pollfds.size(); ++i) {
+		if (_pollfds[i].fd == fd) {
+			_pollfds[i].events &= ~POLLIN;
 			return;
 		}
 	}
@@ -253,14 +263,17 @@ void Server::RemoveClientFromChannels() {
 }
 
 void Server::NotifyWelcome() {
-	QueueMessage(Response::Build(StatusCode::RPL_WELCOME,
-	                             _clients[_socket_in_use].GetNickname() +
-	                                 " :Welcome to a random IRC server !"));
+	QueueMessage(Response::Build(RPL_WELCOME, _clients[_socket_in_use],
+	                             ":Welcome to a random IRC server !"));
 }
 
-void Server::NotifyQuit(const string& reason) {
-	const string message = Response::Build(_clients[_socket_in_use].Identity(),
-	                                       "QUIT", ':' + reason);
+void Server::NotifyQuit() {
+	const Client& client = _clients[_socket_in_use];
+	if (!client.IsRegistered())
+		return;
+
+	const string message =
+	    Response::Build(client, "QUIT", ':' + client.QuitReason());
 
 	vector<int> notified;
 	notified.push_back(_socket_in_use);
@@ -271,57 +284,59 @@ void Server::NotifyQuit(const string& reason) {
 }
 
 vector<Channel>::iterator Server::GetChannelByName(const string& name) {
+	const string lower = ToLower(name);
 	for (vector<Channel>::iterator it = _channels.begin();
 	     it != _channels.end(); ++it)
-		if (it->GetName() == name)
+		if (it->GetLower() == lower)
 			return it;
 	return _channels.end();
 }
 
-int Server::IsUserInChannel(const string& nickname,
-                            const vector<int>& members) {
-	int fd = -1;
-	for (vector<int>::const_iterator member = members.begin();
-	     member != members.end(); ++member)
-		if (_clients[*member].GetNickname() == nickname)
-			return *member;
-	return fd;
+int Server::GetClientByNick(const string& nickname) {
+	const string lower = ToLower(nickname);
+	for (ClientMap::const_iterator it = _clients.begin(); it != _clients.end();
+	     ++it) {
+		if (it->second.IsRegistered() && it->second.GetLower() == lower)
+			return it->first;
+	}
+	return -1;
 }
 
-vector<string> Server::SplitChannels(string& args) {
-	vector<string> channels;
+vector<string> Server::SplitTargets(string& args) {
+	vector<string> targets;
 	while (args.begin() != args.end()) {
 		const size_t pos = args.find(',');
 		if (pos == string::npos) {
-			channels.push_back(args);
+			targets.push_back(args);
 			break;
 		}
-		channels.push_back(args.substr(0, pos));
+		targets.push_back(args.substr(0, pos));
 		args.erase(0, pos + 1);
 	}
-	return channels;
+	return targets;
 }
 
-map<string, string> Server::SplitChannelsAndKeys(vector<string>& args) {
-	map<string, string> channels;
+vector<pair<string, string> > Server::SplitChannelsAndKeys(
+    vector<string>& args) {
+	vector<pair<string, string> > channels;
+
 	string& names = args[0];
 	while (names.begin() != names.end()) {
-		size_t pos = names.find(',');
+		const size_t pos = names.find(',');
 		if (pos == string::npos) {
-			channels[names];
+			channels.push_back(pair<string, string>(names, ""));
 			break;
 		}
-		channels[names.substr(0, pos)];
+		channels.push_back(pair<string, string>(names.substr(0, pos), ""));
 		names.erase(0, pos + 1);
 	}
-
 	if (args.size() == 1)
 		return channels;
 
 	string& keys = args[1];
-	map<string, string>::iterator it = channels.begin();
+	vector<pair<string, string> >::iterator it = channels.begin();
 	while (keys.begin() != keys.end() && it != channels.end()) {
-		size_t pos = keys.find(',');
+		const size_t pos = keys.find(',');
 		if (pos == string::npos) {
 			it->second = keys;
 			break;
@@ -334,4 +349,8 @@ map<string, string> Server::SplitChannelsAndKeys(vector<string>& args) {
 	return channels;
 }
 
-Server::~Server() {}
+Server::~Server() {
+	for (vector<pollfd>::iterator it = _pollfds.begin(); it != _pollfds.end();
+	     ++it)
+		close(it->fd);
+}

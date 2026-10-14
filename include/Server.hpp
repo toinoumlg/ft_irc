@@ -1,9 +1,17 @@
 #pragma once
 
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
+#include <algorithm>
+#include <cerrno>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <map>
 #include <string>
 #include <vector>
@@ -11,16 +19,16 @@
 #include "Channel.hpp"
 #include "Client.hpp"
 #include "Response.hpp"
-#include "StatusCode.hpp"
 
 class Server {
    public:
-	Server(const char *port, const char *password);
+	Server(const string &port, const string &password);
 
 	void Run();
 
-	void ProcessClient(short client_event, int &i);
+	static bool CheckPort(const char *port);
 
+	void ProcessClient(short client_event, int &i);
 	~Server();
 
    private:
@@ -38,7 +46,7 @@ class Server {
 
 	void ConnectClient();
 
-	void HandleRecv();
+	void HandleRecv(Client &client) const;
 
 	void Cap(vector<string> &, Client &);
 
@@ -46,11 +54,9 @@ class Server {
 
 	void Nick(vector<string> &args, Client &client);
 
-	static bool HasInvalidChar(const string &str);
+	bool NicknameExists(const string &nickname, const Client &client);
 
-	bool NicknameExists(const string &nickname);
-
-	void Ping(vector<string> &, Client &);
+	void Ping(vector<string> &args, Client &client);
 
 	void Pass(vector<string> &args, Client &client);
 
@@ -67,27 +73,30 @@ class Server {
 
 	void Kick(vector<string> &args, Client &client);
 
-	void Quit(vector<string> &, Client &);
+	void Quit(vector<string> &, Client &client);
 
-	void Topic(vector<string>& args, Client& client);
-	void Invite(vector<string>& args, Client& client);
-	void Mode(vector<string>& args, Client& client);
-	void SendChannelTopic(Channel& channel, Client& client);
+	void Topic(vector<string> &args, Client &client);
+	void Invite(vector<string> &args, Client &client);
+	void Mode(vector<string> &args, Client &client);
+	void SendChannelTopic(Channel &channel, Client &client);
 
 	void SendChannelNames(Channel &channel, Client &client);
-	static vector<string> SplitChannels(string &args);
-	static map<string, string> SplitChannelsAndKeys(vector<string> &args);
+	static vector<string> SplitTargets(string &args);
+	static vector<pair<string, string> > SplitChannelsAndKeys(
+	    vector<string> &args);
 	void RemoveClientFromChannels();
+	void RemoveClient(int &i);
 	void NotifyWelcome();
-	void NotifyQuit(const string &reason);
+	void NotifyQuit();
 	vector<Channel>::iterator GetChannelByName(const string &name);
-	int IsUserInChannel(const string &nickname, const vector<int> &members);
+	int GetClientByNick(const string &nickname);
 
 	void EnablePollout(int fd);
 	void QueueMessage(const string &message);
 	void QueueMessage(int fd, const string &message);
-	void HandleSend();
+	void HandleSend(Client &client);
 	void DisablePollout(int fd);
+	void DisablePollin(int fd);
 
 	int _server_socket;
 	int _socket_in_use;
@@ -95,8 +104,6 @@ class Server {
 	string _port;
 	string _password;
 	string _message;
-	sockaddr_in _address;
-	socklen_t _addrlen;
 	vector<Channel> _channels;
 	vector<pollfd> _pollfds;
 	ClientMap _clients;

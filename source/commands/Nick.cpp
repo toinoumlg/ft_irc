@@ -1,32 +1,28 @@
 #include <algorithm>
 #include <cctype>
 
+#include "Helper.hpp"
 #include "Response.hpp"
 #include "Server.hpp"
-#include "StatusCode.hpp"
 
 void Server::Nick(vector<string> &args, Client &client) {
 	if (!client.HasSetPassword())
-		return QueueMessage(_socket_in_use,
-		                    Response::Build(StatusCode::ERR_NOTREGISTERED,
-		                                    client.GetNickname() +
-		                                        " :You have not registered"));
-	if (args.empty())
-		return QueueMessage(_socket_in_use,
-		                    Response::Build(StatusCode::ERR_NONICKNAMEGIVEN,
-		                                    ":No nickname given"));
-	if (HasInvalidChar(args[0]))
-		return QueueMessage(_socket_in_use,
-		                    Response::Build(StatusCode::ERR_ERRONEUSNICKNAME,
-		                                    args[0] + " :Erroneous nickname"));
-	if (NicknameExists(args[0]))
+		return QueueMessage(Response::Build(ERR_NOTREGISTERED, client,
+		                                    ":You have not registered"));
+	if (args.empty() || args[0].empty())
 		return QueueMessage(
-		    _socket_in_use,
-		    Response::Build(StatusCode::ERR_NICKNAMEINUSE,
-		                    args[0] + " :Nickname already in use"));
+		    Response::Build(ERR_NONICKNAMEGIVEN, client, ":No nickname given"));
+	if (!IsValidNickname(args[0]))
+		return QueueMessage(Response::Build(ERR_ERRONEUSNICKNAME, client,
+		                                    args[0] + " :Erroneous nickname"));
+	if (args[0] == client.GetNickname())
+		return;
 
-	const string old_nick = client.GetNickname();
-	const string old_ident = client.Identity();
+	if (NicknameExists(args[0], client))
+		return QueueMessage(Response::Build(
+		    ERR_NICKNAMEINUSE, client, args[0] + " :Nickname already in use"));
+
+	const Client old_client = client;
 	client.SetNickname(args[0]);
 	if (!client.IsRegistered() && client.SetRegistered())
 		return NotifyWelcome();
@@ -34,7 +30,7 @@ void Server::Nick(vector<string> &args, Client &client) {
 		return;
 
 	const string message =
-	    Response::Build(old_ident, "NICK", ":" + client.GetNickname());
+	    Response::Build(old_client, "NICK", ":" + client.GetNickname());
 
 	vector<int> notified;
 	QueueMessage(message);
@@ -49,24 +45,13 @@ void Server::Nick(vector<string> &args, Client &client) {
 	}
 }
 
-bool Server::NicknameExists(const string &nickname) {
+bool Server::NicknameExists(const string &nickname, const Client &client) {
+	const string lowerNickname = ToLower(nickname);
 	for (ClientMap::const_iterator it = _clients.begin(); it != _clients.end();
-	     ++it)
-		if (it->second.GetNickname() == nickname)
-			return true;
-	return false;
-}
-
-bool Server::HasInvalidChar(const string &str) {
-	if (str.empty() || isdigit(static_cast<unsigned char>(str[0])) ||
-	    str[0] == '-' || str[0] == '/')
-		return true;
-
-	for (size_t i = 0; i < str.size(); ++i) {
-		const unsigned char c = static_cast<unsigned char>(str[i]);
-		if (!isalnum(c) && c != '[' && c != '\\' && c != ']' && c != '^' &&
-		    c != '_' && c != '-' && c != '{' && c != '}' && c != '|' &&
-		    c != '`')
+	     ++it) {
+		if (&it->second == &client)
+			continue;
+		if (it->second.GetLower() == lowerNickname)
 			return true;
 	}
 	return false;

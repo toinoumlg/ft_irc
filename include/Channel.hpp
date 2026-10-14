@@ -1,11 +1,15 @@
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <vector>
+
+#include "Helper.hpp"
 
 class Channel {
    private:
 	std::string _name;
+	std::string _lower_name;
 	std::string _key;
 	std::string _modes;
 	std::vector<int> _clients;
@@ -24,6 +28,7 @@ class Channel {
 	static bool IsValidName(const std::string& name);
 
 	const std::string& GetName() const;
+	const std::string& GetLower() const;
 
 	bool HasClient(int fd) const;
 	void AddClient(int fd);
@@ -51,6 +56,10 @@ class Channel {
 	bool HasKey() const;
 	void SetKey(const std::string& key);
 	bool CheckKey(const std::string& key) const;
+
+	void SetMaxClient(unsigned short max);
+	bool IsFull() const;
+	unsigned int Limit() const;
 
 	void SetModes();
 	std::string GetModes() const;

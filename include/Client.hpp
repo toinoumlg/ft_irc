@@ -10,38 +10,35 @@
 #include <string>
 #include <vector>
 
+#include "Helper.hpp"
+
 using namespace std;
 
 const int MAX_BUFFER_SIZE = 512;
 
 class Client {
    private:
+	enum ClosingState { OPEN, DRAIN, NOW };
 	string _buffer;
 	string _output_buffer;
-	sockaddr_in _client_addr;
 
 	string _user;
 	string _nickname;
+	string _lower_nickname;
 	string _alias;
 	string _fullname;
 	string _mode;
 
 	bool _has_set_pwd;
 	bool _is_registered;
+	ClosingState _close_state;
+	string _quit_reason;
 
 	static vector<string> ParseLine(const string &line);
 
    public:
-	class Close : public exception {};
-	class Disconnect : public exception {};
-
 	Client();
-	Client(const sockaddr_in &clientAddr);
 	~Client();
-
-	// Connection
-	const char *Address() const;
-	in_port_t Port() const;
 
 	// IRC buffer / parsing
 	void PushBuffer(uint8_t *c, const size_t &size);
@@ -56,10 +53,11 @@ class Client {
 	string Identity() const;
 
 	const string &GetNickname() const;
+	const string &GetLower() const;
 	void SetNickname(const string &value);
 
 	string &GetUser();
-	void SetUser(vector<string> &values);
+	void SetUser(const vector<string> &values);
 
 	string &GetAlias();
 	void SetAlias(const string &value);
@@ -69,8 +67,13 @@ class Client {
 	bool HasSetPassword() const;
 	bool SetRegistered();
 	bool IsRegistered() const;
+
+	// Closing state
+	bool IsClosing() const;
+	void MarkClosing(const string &reason);
+	void MarkDead(const string &reason);
+	bool ShouldClose() const;
+	const string &QuitReason() const;
 };
 
 typedef map<int, Client> ClientMap;
-
-ostream &operator<<(ostream &stream, const Client &client);

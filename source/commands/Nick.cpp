@@ -1,10 +1,14 @@
+#include "Server.hpp"
+
 #include <algorithm>
 #include <cctype>
 
 #include "Helper.hpp"
 #include "Response.hpp"
-#include "Server.hpp"
 
+using namespace std;
+
+// Connection commands
 void Server::Nick(vector<string> &args, Client &client) {
 	if (!client.HasSetPassword())
 		return QueueMessage(Response::Build(ERR_NOTREGISTERED, client,
@@ -45,6 +49,7 @@ void Server::Nick(vector<string> &args, Client &client) {
 	}
 }
 
+// Lookup / argument parsing
 bool Server::NicknameExists(const string &nickname, const Client &client) {
 	const string lowerNickname = ToLower(nickname);
 	for (ClientMap::const_iterator it = _clients.begin(); it != _clients.end();

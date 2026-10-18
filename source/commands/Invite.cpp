@@ -1,6 +1,10 @@
-#include "Response.hpp"
 #include "Server.hpp"
 
+#include "Response.hpp"
+
+using namespace std;
+
+// Messaging / channel commands
 void Server::Invite(vector<string>& args, Client& client) {
 	if (args.size() < 2)
 		return QueueMessage(Response::Build(ERR_NEEDMOREPARAMS, client,

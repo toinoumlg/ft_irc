@@ -1,25 +1,29 @@
 #include "Channel.hpp"
 
+#include <algorithm>
 #include <sstream>
 
-Channel::Channel(const std::string& name, const int creator_fd)
+#include "Helper.hpp"
+
+using namespace std;
+
+Channel::Channel(const string& name, const int creator_fd)
     : _name(name),
+      _max_client(0),
       _topic_restricted(false),
-      _invite_only(false),
-      _max_client(0) {
+      _invite_only(false) {
 	_clients.push_back(creator_fd);
 	_operators.push_back(creator_fd);
 	SetModes();
 	_lower_name = ToLower(_name);
 }
 
-Channel::Channel(const std::string& name, const int creator_fd,
-                 const std::string& key)
+Channel::Channel(const string& name, const int creator_fd, const string& key)
     : _name(name),
-      _key(key),
+      _max_client(0),
       _topic_restricted(false),
       _invite_only(false),
-      _max_client(0) {
+      _key(key) {
 	_clients.push_back(creator_fd);
 	_operators.push_back(creator_fd);
 	SetModes();
@@ -28,23 +32,33 @@ Channel::Channel(const std::string& name, const int creator_fd,
 
 Channel::~Channel() {}
 
-bool Channel::IsValidName(const std::string& name) {
+// Name
+bool Channel::IsValidName(const string& name) {
 	return !name.empty() &&
 	       (name[0] == '#' || name[0] == '+' || name[0] == '!' ||
 	        name[0] == '&') &&
 	       name.size() < 50;
 }
 
-const std::string& Channel::GetName() const {
+const string& Channel::GetName() const {
 	return _name;
 }
 
-const std::string& Channel::GetLower() const {
+const string& Channel::GetLower() const {
 	return _lower_name;
 }
 
+// Members / capacity
 bool Channel::HasClient(const int fd) const {
-	return std::find(_clients.begin(), _clients.end(), fd) != _clients.end();
+	return find(_clients.begin(), _clients.end(), fd) != _clients.end();
+}
+
+bool Channel::IsEmpty() const {
+	return _clients.empty();
+}
+
+bool Channel::IsFull() const {
+	return _max_client == 0 ? false : _clients.size() >= _max_client;
 }
 
 void Channel::AddClient(const int fd) {
@@ -53,8 +67,7 @@ void Channel::AddClient(const int fd) {
 }
 
 void Channel::RemoveClient(const int fd) {
-	std::vector<int>::iterator it =
-	    std::find(_clients.begin(), _clients.end(), fd);
+	vector<int>::iterator it = find(_clients.begin(), _clients.end(), fd);
 
 	if (it != _clients.end())
 		_clients.erase(it);
@@ -62,13 +75,21 @@ void Channel::RemoveClient(const int fd) {
 	RemoveOperator(fd);
 }
 
-const std::vector<int>& Channel::GetClients() const {
+void Channel::SetMaxClient(const unsigned short max) {
+	_max_client = max;
+}
+
+const vector<int>& Channel::GetClients() const {
 	return _clients;
 }
 
+unsigned int Channel::Limit() const {
+	return _max_client;
+}
+
+// Operators
 bool Channel::IsOperator(const int fd) const {
-	return std::find(_operators.begin(), _operators.end(), fd) !=
-	       _operators.end();
+	return find(_operators.begin(), _operators.end(), fd) != _operators.end();
 }
 
 void Channel::AddOperator(const int fd) {
@@ -77,35 +98,36 @@ void Channel::AddOperator(const int fd) {
 }
 
 void Channel::RemoveOperator(const int fd) {
-	std::vector<int>::iterator it =
-	    std::find(_operators.begin(), _operators.end(), fd);
+	vector<int>::iterator it = find(_operators.begin(), _operators.end(), fd);
 
 	if (it != _operators.end())
 		_operators.erase(it);
 }
 
-bool Channel::IsEmpty() const {
-	return _clients.empty();
-}
-
-const std::string& Channel::GetTopic() const {
-	return _topic;
-}
-
-void Channel::SetTopic(const std::string& topic) {
-	_topic = topic;
-}
-
+// Topic
 bool Channel::IsTopicRestricted() const {
 	return _topic_restricted;
+}
+
+void Channel::SetTopic(const string& topic) {
+	_topic = topic;
 }
 
 void Channel::SetTopicRestricted(const bool restricted) {
 	_topic_restricted = restricted;
 }
 
+const string& Channel::GetTopic() const {
+	return _topic;
+}
+
+// Invitations
 bool Channel::IsInviteOnly() const {
 	return _invite_only;
+}
+
+bool Channel::IsInvited(const int fd) const {
+	return find(_invited.begin(), _invited.end(), fd) != _invited.end();
 }
 
 void Channel::SetInviteOnly(const bool enabled) {
@@ -117,43 +139,29 @@ void Channel::AddInvitation(const int fd) {
 		_invited.push_back(fd);
 }
 
-bool Channel::IsInvited(const int fd) const {
-	return std::find(_invited.begin(), _invited.end(), fd) != _invited.end();
-}
-
 void Channel::RemoveInvitation(const int fd) {
-	const std::vector<int>::iterator it =
-	    std::find(_invited.begin(), _invited.end(), fd);
+	const vector<int>::iterator it = find(_invited.begin(), _invited.end(), fd);
 	if (it != _invited.end())
 		_invited.erase(it);
 }
 
+// Channel key
 bool Channel::HasKey() const {
 	return !_key.empty();
 }
 
-void Channel::SetKey(const std::string& key) {
-	_key = key;
-}
-
-bool Channel::CheckKey(const std::string& key) const {
+bool Channel::CheckKey(const string& key) const {
 	return key == _key;
 }
 
-void Channel::SetMaxClient(const unsigned short max) {
-	_max_client = max;
+void Channel::SetKey(const string& key) {
+	_key = key;
 }
 
-bool Channel::IsFull() const {
-	return _max_client == 0 ? false : _clients.size() >= _max_client;
-}
-unsigned int Channel::Limit() const {
-	return _max_client;
-}
-
+// Mode summary
 void Channel::SetModes() {
-	std::string modes = "+";
-	std::string params;
+	string modes = "+";
+	string params;
 	if (IsInviteOnly())
 		modes += 'i';
 	if (IsTopicRestricted())
@@ -171,6 +179,6 @@ void Channel::SetModes() {
 	_modes = modes + params;
 }
 
-std::string Channel::GetModes() const {
+string Channel::GetModes() const {
 	return _modes;
 }

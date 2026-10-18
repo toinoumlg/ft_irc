@@ -1,9 +1,14 @@
+#include "Server.hpp"
+
+#include <cstdlib>
 #include <iostream>
 #include <string>
 
 #include "Response.hpp"
-#include "Server.hpp"
 
+using namespace std;
+
+// Messaging / channel commands
 void Server::Mode(vector<string>& args, Client& client) {
 	if (args.empty() || (args.size() > 1 && args[1].empty()))
 		return QueueMessage(Response::Build(ERR_NEEDMOREPARAMS, client,

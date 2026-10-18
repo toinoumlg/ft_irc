@@ -1,110 +1,100 @@
 #pragma once
 
-#include <fcntl.h>
-#include <netinet/in.h>
 #include <poll.h>
-#include <sys/socket.h>
-#include <unistd.h>
 
-#include <algorithm>
-#include <cerrno>
-#include <csignal>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Channel.hpp"
 #include "Client.hpp"
-#include "Response.hpp"
 
 class Server {
    public:
-	Server(const string &port, const string &password);
-
-	void Run();
-
-	static bool CheckPort(const char *port);
-
-	void ProcessClient(short client_event, int &i);
+	Server(const std::string& port, const std::string& password);
 	~Server();
 
-   private:
-	typedef void (Server::*CommandHandler)(vector<string> &, Client &);
+	// Startup
+	static bool CheckPort(const char* port);
+	void Run();
 
+   private:
+	// Command dispatch
+	typedef void (Server::*CommandHandler)(std::vector<std::string>&, Client&);
 	struct CommandEntry {
-		const char *name;
+		const char* name;
 		bool needsRegistration;
 		CommandHandler handler;
 	};
-
 	static const CommandEntry _commands[];
+	void RunCommand(Client& client);
 
-	void RunCommand(Client &client);
-
+	// Network I/O
 	void ConnectClient();
-
-	void HandleRecv(Client &client) const;
-
-	void Cap(vector<string> &, Client &);
-
-	void User(vector<string> &args, Client &client);
-
-	void Nick(vector<string> &args, Client &client);
-
-	bool NicknameExists(const string &nickname, const Client &client);
-
-	void Ping(vector<string> &args, Client &client);
-
-	void Pass(vector<string> &args, Client &client);
-
-	void Privmsg(vector<string> &args, Client &client);
-	void BroadcastMessages(const vector<int> &members, const string &message);
-	void BroadcastMessages(const vector<int> &members,
-	                       const std::string &message, int fd);
-	void BroadcastMessages(const vector<int> &members,
-	                       const std::string &message, vector<int> &notified);
-
-	void Join(vector<string> &args, Client &client);
-
-	void Part(vector<string> &args, Client &client);
-
-	void Kick(vector<string> &args, Client &client);
-
-	void Quit(vector<string> &, Client &client);
-
-	void Topic(vector<string> &args, Client &client);
-	void Invite(vector<string> &args, Client &client);
-	void Mode(vector<string> &args, Client &client);
-	void SendChannelTopic(Channel &channel, Client &client);
-
-	void SendChannelNames(Channel &channel, Client &client);
-	static vector<string> SplitTargets(string &args);
-	static vector<pair<string, string> > SplitChannelsAndKeys(
-	    vector<string> &args);
-	void RemoveClientFromChannels();
-	void RemoveClient(int &i);
-	void NotifyWelcome();
-	void NotifyQuit();
-	vector<Channel>::iterator GetChannelByName(const string &name);
-	int GetClientByNick(const string &nickname);
-
+	void ProcessClient(short client_event, int& i);
+	void HandleRecv(Client& client) const;
+	void HandleSend(Client& client);
 	void EnablePollout(int fd);
-	void QueueMessage(const string &message);
-	void QueueMessage(int fd, const string &message);
-	void HandleSend(Client &client);
 	void DisablePollout(int fd);
 	void DisablePollin(int fd);
 
+	// Connection commands
+	void Cap(std::vector<std::string>& args, Client& client);
+	void Pass(std::vector<std::string>& args, Client& client);
+	void Nick(std::vector<std::string>& args, Client& client);
+	void User(std::vector<std::string>& args, Client& client);
+	void Ping(std::vector<std::string>& args, Client& client);
+	void Quit(std::vector<std::string>& args, Client& client);
+
+	// Messaging / channel commands
+	void Privmsg(std::vector<std::string>& args, Client& client);
+	void Join(std::vector<std::string>& args, Client& client);
+	void Part(std::vector<std::string>& args, Client& client);
+	void Kick(std::vector<std::string>& args, Client& client);
+	void Topic(std::vector<std::string>& args, Client& client);
+	void Invite(std::vector<std::string>& args, Client& client);
+	void Mode(std::vector<std::string>& args, Client& client);
+
+	// Lookup / argument parsing
+	bool NicknameExists(const std::string& nickname, const Client& client);
+	std::vector<Channel>::iterator GetChannelByName(const std::string& name);
+	int GetClientByNick(const std::string& nickname);
+	static std::vector<std::string> SplitTargets(std::string& args);
+	static std::vector<std::pair<std::string, std::string> >
+	SplitChannelsAndKeys(std::vector<std::string>& args);
+
+	// Output queues / broadcasts
+	void QueueMessage(const std::string& message);
+	void QueueMessage(int fd, const std::string& message);
+	void BroadcastMessages(const std::vector<int>& members,
+	                       const std::string& message);
+	void BroadcastMessages(const std::vector<int>& members,
+	                       const std::string& message, int fd);
+	void BroadcastMessages(const std::vector<int>& members,
+	                       const std::string& message,
+	                       std::vector<int>& notified);
+
+	// Replies / notifications
+	void SendChannelTopic(Channel& channel, Client& client);
+	void SendChannelNames(Channel& channel, Client& client);
+	void NotifyWelcome();
+	void NotifyQuit();
+
+	// Disconnection / cleanup
+	void RemoveClientFromChannels();
+	void RemoveClient(int& i);
+
+	// Network state
 	int _server_socket;
 	int _socket_in_use;
 	int _connected_clients;
-	string _port;
-	string _password;
-	string _message;
-	vector<Channel> _channels;
-	vector<pollfd> _pollfds;
+
+	// Configuration
+	std::string _port;
+	std::string _password;
+
+	// Channels, monitored sockets and clients
+	std::vector<Channel> _channels;
+	std::vector<pollfd> _pollfds;
 	ClientMap _clients;
 };

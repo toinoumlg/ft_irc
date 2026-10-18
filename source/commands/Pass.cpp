@@ -1,6 +1,11 @@
-#include "Response.hpp"
 #include "Server.hpp"
-void Server::Pass(std::vector<std::string> &args, Client &client) {
+
+#include "Response.hpp"
+
+using namespace std;
+
+// Connection commands
+void Server::Pass(vector<string> &args, Client &client) {
 	if (args.empty())
 		return QueueMessage(Response::Build(ERR_NEEDMOREPARAMS, client,
 		                                    "PASS :Need more parameters"));

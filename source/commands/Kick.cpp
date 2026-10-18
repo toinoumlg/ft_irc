@@ -1,8 +1,12 @@
+#include "Server.hpp"
+
 #include <algorithm>
 
 #include "Response.hpp"
-#include "Server.hpp"
 
+using namespace std;
+
+// Messaging / channel commands
 void Server::Kick(vector<string>& args, Client& client) {
 	if (args.size() < 2)
 		return QueueMessage(Response::Build(ERR_NEEDMOREPARAMS, client,

@@ -1,7 +1,11 @@
-#include "Response.hpp"
 #include "Server.hpp"
 
-void Server::Privmsg(std::vector<std::string> &args, Client &client) {
+#include "Response.hpp"
+
+using namespace std;
+
+// Messaging / channel commands
+void Server::Privmsg(vector<string> &args, Client &client) {
 	if (args.empty())
 		return QueueMessage(Response::Build(ERR_NORECIPIENT, client,
 		                                    ":No recipient given (PRIVMSG)"));

@@ -1,5 +1,10 @@
 #include "Server.hpp"
 
+#include "Response.hpp"
+
+using namespace std;
+
+// Messaging / channel commands
 void Server::Join(vector<string>& args, Client& client) {
 	if (args.empty())
 		return QueueMessage(Response::Build(ERR_NEEDMOREPARAMS, client,
@@ -68,6 +73,7 @@ void Server::Join(vector<string>& args, Client& client) {
 	}
 }
 
+// Replies / notifications
 void Server::SendChannelNames(Channel& channel, Client& client) {
 	const vector<int>& members = channel.GetClients();
 	string names;

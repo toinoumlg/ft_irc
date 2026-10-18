@@ -1,5 +1,22 @@
 #include "Server.hpp"
 
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <cctype>
+#include <cerrno>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
+#include <stdexcept>
+
+#include "Helper.hpp"
+#include "Response.hpp"
+
+using namespace std;
+
 static volatile sig_atomic_t gSignalStatus;
 
 const Server::CommandEntry Server::_commands[] = {
@@ -10,17 +27,6 @@ const Server::CommandEntry Server::_commands[] = {
     {"KICK", true, &Server::Kick},       {"TOPIC", true, &Server::Topic},
     {"INVITE", true, &Server::Invite},   {"MODE", true, &Server::Mode},
     {"PART", true, &Server::Part}};
-
-bool Server::CheckPort(const char* port) {
-	if (port == NULL || !isdigit(static_cast<unsigned char>(port[0])))
-		return false;
-	char* end = NULL;
-	errno = 0;
-	const long int value = strtol(port, &end, 10);
-	if (*end != '\0' || value < 1024 || value > 65535)
-		return false;
-	return true;
-}
 
 static void signal_handler(int signal) {
 	gSignalStatus = signal;
@@ -89,6 +95,24 @@ Server::Server(const string& port, const string& password)
 
 const int MAX_LENGTH = 512;
 
+Server::~Server() {
+	for (vector<pollfd>::iterator it = _pollfds.begin(); it != _pollfds.end();
+	     ++it)
+		close(it->fd);
+}
+
+// Startup
+bool Server::CheckPort(const char* port) {
+	if (port == NULL || !isdigit(static_cast<unsigned char>(port[0])))
+		return false;
+	char* end = NULL;
+	errno = 0;
+	const long int value = strtol(port, &end, 10);
+	if (*end != '\0' || value < 1024 || value > 65535)
+		return false;
+	return true;
+}
+
 void Server::Run() {
 	while (gSignalStatus == 0) {
 		const int res = poll(&_pollfds[0], _pollfds.size(), 300);
@@ -110,76 +134,7 @@ void Server::Run() {
 	}
 }
 
-void Server::ProcessClient(const short client_event, int& i) {
-	Client& client = _clients[_socket_in_use];
-
-	if (client_event & (POLLERR | POLLHUP | POLLNVAL))
-		client.MarkDead("Connection error");
-	else {
-		if (client_event & POLLIN) {
-			HandleRecv(client);
-			while (!client.IsClosing() && client.HasPendingCommand())
-				RunCommand(client);
-		}
-
-		if (client_event & POLLOUT)
-			HandleSend(client);
-	}
-	if (client.IsClosing())
-		DisablePollin(_socket_in_use);
-	if (client.ShouldClose())
-		RemoveClient(i);
-}
-
-void Server::RemoveClient(int& i) {
-	NotifyQuit();
-	RemoveClientFromChannels();
-	close(_socket_in_use);
-	_clients.erase(_clients.find(_socket_in_use));
-	_pollfds.erase(_pollfds.begin() + i + 1);
-	_connected_clients--;
-	i--;
-}
-
-void Server::ConnectClient() {
-	sockaddr_in client_address;
-	socklen_t client_addrlen = sizeof(client_address);
-
-	_socket_in_use =
-	    accept(_server_socket, reinterpret_cast<sockaddr*>(&client_address),
-	           &client_addrlen);
-
-	if (_socket_in_use < 0)
-		return;
-
-	if (fcntl(_socket_in_use, F_SETFL, O_NONBLOCK) < 0) {
-		close(_socket_in_use);
-		return;
-	}
-
-	pollfd client_pollfd;
-	client_pollfd.fd = _socket_in_use;
-	client_pollfd.events = POLLIN;
-	client_pollfd.revents = 0;
-
-	_clients[_socket_in_use];
-	_pollfds.push_back(client_pollfd);
-	_connected_clients++;
-}
-
-void Server::HandleRecv(Client& client) const {
-	uint8_t recv_buffer[MAX_LENGTH + 1];
-	const ssize_t recv_size = recv(_socket_in_use, recv_buffer, MAX_LENGTH, 0);
-
-	if (recv_size == 0)
-		return client.MarkClosing("Client disconnect");
-
-	if (recv_size < 0)
-		return client.MarkDead("Read error");
-
-	client.PushBuffer(recv_buffer, recv_size);
-}
-
+// Command dispatch
 void Server::RunCommand(Client& client) {
 	vector<string> args = client.CreateArgs();
 
@@ -203,6 +158,67 @@ void Server::RunCommand(Client& client) {
 
 	QueueMessage(
 	    Response::Build(ERR_UNKNOWNCOMMAND, client, cmd + " :Unknown command"));
+}
+
+// Network I/O
+void Server::ConnectClient() {
+	sockaddr_in client_address;
+	socklen_t client_addrlen = sizeof(client_address);
+
+	_socket_in_use =
+	    accept(_server_socket, reinterpret_cast<sockaddr*>(&client_address),
+		       &client_addrlen);
+
+	if (_socket_in_use < 0)
+		return;
+
+	if (fcntl(_socket_in_use, F_SETFL, O_NONBLOCK) < 0) {
+		close(_socket_in_use);
+		return;
+	}
+
+	pollfd client_pollfd;
+	client_pollfd.fd = _socket_in_use;
+	client_pollfd.events = POLLIN;
+	client_pollfd.revents = 0;
+
+	_clients[_socket_in_use];
+	_pollfds.push_back(client_pollfd);
+	_connected_clients++;
+}
+
+void Server::ProcessClient(const short client_event, int& i) {
+	Client& client = _clients[_socket_in_use];
+
+	if (client_event & (POLLERR | POLLHUP | POLLNVAL))
+		client.MarkDead("Connection error");
+	else {
+		if (client_event & POLLIN) {
+			HandleRecv(client);
+			while (!client.IsClosing() && client.HasPendingCommand())
+				RunCommand(client);
+		}
+
+		if (client_event & POLLOUT)
+			HandleSend(client);
+	}
+	if (client.IsClosing())
+		DisablePollin(_socket_in_use);
+	if (client.ShouldClose())
+		RemoveClient(i);
+}
+
+void Server::HandleRecv(Client& client) const {
+	uint8_t recv_buffer[MAX_LENGTH + 1];
+	const ssize_t recv_size = recv(_socket_in_use, recv_buffer, MAX_LENGTH, 0);
+
+	if (recv_size == 0)
+		return client.MarkClosing("Client disconnect");
+
+	if (recv_size < 0)
+		return client.MarkDead("Read error");
+
+	client.PushBuffer(recv_buffer, recv_size);
 }
 
 void Server::HandleSend(Client& client) {
@@ -249,40 +265,7 @@ void Server::DisablePollin(const int fd) {
 	}
 }
 
-void Server::RemoveClientFromChannels() {
-	for (size_t i = 0; i < _channels.size();) {
-		_channels[i].RemoveInvitation(_socket_in_use);
-		if (_channels[i].HasClient(_socket_in_use))
-			_channels[i].RemoveClient(_socket_in_use);
-
-		if (_channels[i].IsEmpty())
-			_channels.erase(_channels.begin() + i);
-		else
-			++i;
-	}
-}
-
-void Server::NotifyWelcome() {
-	QueueMessage(Response::Build(RPL_WELCOME, _clients[_socket_in_use],
-	                             ":Welcome to a random IRC server !"));
-}
-
-void Server::NotifyQuit() {
-	const Client& client = _clients[_socket_in_use];
-	if (!client.IsRegistered())
-		return;
-
-	const string message =
-	    Response::Build(client, "QUIT", ':' + client.QuitReason());
-
-	vector<int> notified;
-	notified.push_back(_socket_in_use);
-
-	for (size_t i = 0; i < _channels.size(); ++i)
-		if (_channels[i].HasClient(_socket_in_use))
-			BroadcastMessages(_channels[i].GetClients(), message, notified);
-}
-
+// Lookup / argument parsing
 vector<Channel>::iterator Server::GetChannelByName(const string& name) {
 	const string lower = ToLower(name);
 	for (vector<Channel>::iterator it = _channels.begin();
@@ -349,8 +332,48 @@ vector<pair<string, string> > Server::SplitChannelsAndKeys(
 	return channels;
 }
 
-Server::~Server() {
-	for (vector<pollfd>::iterator it = _pollfds.begin(); it != _pollfds.end();
-	     ++it)
-		close(it->fd);
+// Replies / notifications
+void Server::NotifyWelcome() {
+	QueueMessage(Response::Build(RPL_WELCOME, _clients[_socket_in_use],
+	                             ":Welcome to a random IRC server !"));
+}
+
+void Server::NotifyQuit() {
+	const Client& client = _clients[_socket_in_use];
+	if (!client.IsRegistered())
+		return;
+
+	const string message =
+	    Response::Build(client, "QUIT", ':' + client.QuitReason());
+
+	vector<int> notified;
+	notified.push_back(_socket_in_use);
+
+	for (size_t i = 0; i < _channels.size(); ++i)
+		if (_channels[i].HasClient(_socket_in_use))
+			BroadcastMessages(_channels[i].GetClients(), message, notified);
+}
+
+// Disconnection / cleanup
+void Server::RemoveClientFromChannels() {
+	for (size_t i = 0; i < _channels.size();) {
+		_channels[i].RemoveInvitation(_socket_in_use);
+		if (_channels[i].HasClient(_socket_in_use))
+			_channels[i].RemoveClient(_socket_in_use);
+
+		if (_channels[i].IsEmpty())
+			_channels.erase(_channels.begin() + i);
+		else
+			++i;
+	}
+}
+
+void Server::RemoveClient(int& i) {
+	NotifyQuit();
+	RemoveClientFromChannels();
+	close(_socket_in_use);
+	_clients.erase(_clients.find(_socket_in_use));
+	_pollfds.erase(_pollfds.begin() + i + 1);
+	_connected_clients--;
+	i--;
 }

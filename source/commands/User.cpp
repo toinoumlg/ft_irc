@@ -1,5 +1,10 @@
 #include "Server.hpp"
 
+#include "Response.hpp"
+
+using namespace std;
+
+// Connection commands
 void Server::User(vector<string> &args, Client &client) {
 	if (!client.HasSetPassword())
 		return QueueMessage(Response::Build(ERR_NOTREGISTERED, client,

@@ -1,4 +1,7 @@
 #include "Server.hpp"
 
+using namespace std;
+
 // https://ircv3.net/specs/extensions/capability-negotiation.html
-void Server::Cap(std::vector<std::string> &, Client &) {}
+// Connection commands
+void Server::Cap(vector<string> &, Client &) {}

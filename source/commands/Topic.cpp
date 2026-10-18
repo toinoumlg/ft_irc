@@ -1,6 +1,10 @@
-#include "Response.hpp"
 #include "Server.hpp"
 
+#include "Response.hpp"
+
+using namespace std;
+
+// Messaging / channel commands
 void Server::Topic(vector<string>& args, Client& client) {
 	if (args.empty())
 		return QueueMessage(Response::Build(ERR_NEEDMOREPARAMS, client,
@@ -31,6 +35,7 @@ void Server::Topic(vector<string>& args, Client& client) {
 	                                  ':' + channel.GetTopic()));
 }
 
+// Replies / notifications
 void Server::SendChannelTopic(Channel& channel, Client& client) {
 	if (channel.GetTopic().empty()) {
 		QueueMessage(Response::Build(RPL_NOTOPIC, client,

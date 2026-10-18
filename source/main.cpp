@@ -1,6 +1,10 @@
 #include <csignal>
+#include <exception>
+#include <iostream>
 
 #include "Server.hpp"
+
+using namespace std;
 
 int main(int ac, char* av[]) {
 	if (ac != 3) {

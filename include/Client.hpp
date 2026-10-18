@@ -1,79 +1,73 @@
 #pragma once
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <stdint.h>
 
-#include <exception>
+#include <cstddef>
 #include <map>
-#include <ostream>
 #include <string>
 #include <vector>
 
-#include "Helper.hpp"
-
-using namespace std;
-
-const int MAX_BUFFER_SIZE = 512;
-
 class Client {
-   private:
-	enum ClosingState { OPEN, DRAIN, NOW };
-	string _buffer;
-	string _output_buffer;
-
-	string _user;
-	string _nickname;
-	string _lower_nickname;
-	string _alias;
-	string _fullname;
-	string _mode;
-
-	bool _has_set_pwd;
-	bool _is_registered;
-	ClosingState _close_state;
-	string _quit_reason;
-
-	static vector<string> ParseLine(const string &line);
-
    public:
 	Client();
 	~Client();
 
-	// IRC buffer / parsing
-	void PushBuffer(uint8_t *c, const size_t &size);
+	// Input buffering / parsing
 	bool HasPendingCommand() const;
-	vector<string> CreateArgs();
-	void QueueOutput(const string &message);
+	void PushBuffer(uint8_t* c, const std::size_t& size);
+	std::vector<std::string> CreateArgs();
+
+	// Output buffering
 	bool HasPendingOutput() const;
-	const string &GetOutputBuffer() const;
-	void ConsumeOutput(size_t size);
+	void QueueOutput(const std::string& message);
+	void ConsumeOutput(std::size_t size);
+	const std::string& GetOutputBuffer() const;
 
 	// Client identity
-	string Identity() const;
-
-	const string &GetNickname() const;
-	const string &GetLower() const;
-	void SetNickname(const string &value);
-
-	string &GetUser();
-	void SetUser(const vector<string> &values);
-
-	string &GetAlias();
-	void SetAlias(const string &value);
+	void SetNickname(const std::string& value);
+	void SetUser(const std::vector<std::string>& values);
+	std::string Identity() const;
+	const std::string& GetNickname() const;
+	const std::string& GetLower() const;
+	std::string& GetUser();
 
 	// Registration
-	void SetPassword(bool value);
 	bool HasSetPassword() const;
-	bool SetRegistered();
 	bool IsRegistered() const;
+	void SetPassword(bool value);
+	bool SetRegistered();
 
 	// Closing state
 	bool IsClosing() const;
-	void MarkClosing(const string &reason);
-	void MarkDead(const string &reason);
 	bool ShouldClose() const;
-	const string &QuitReason() const;
+	void MarkClosing(const std::string& reason);
+	void MarkDead(const std::string& reason);
+	const std::string& QuitReason() const;
+
+   private:
+	enum ClosingState { OPEN, DRAIN, NOW };
+
+	// Parsing
+	static std::vector<std::string> ParseLine(const std::string& line);
+
+	// Input / output buffers
+	std::string _buffer;
+	std::string _output_buffer;
+
+	// Identity
+	std::string _user;
+	std::string _nickname;
+	std::string _lower_nickname;
+	std::string _fullname;
+	std::string _mode;
+
+	// Registration
+	bool _has_set_pwd;
+	bool _is_registered;
+
+	// Closing state
+	ClosingState _close_state;
+	std::string _quit_reason;
 };
 
-typedef map<int, Client> ClientMap;
+typedef std::map<int, Client> ClientMap;

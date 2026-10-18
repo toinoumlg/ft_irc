@@ -1,6 +1,11 @@
 #include "Helper.hpp"
 
-string ToLower(const string &str) {
+#include <cctype>
+
+using namespace std;
+
+// IRC name normalization
+string ToLower(const string& str) {
 	string out = string(str);
 	for (size_t i = 0; i < out.size(); ++i) {
 		const unsigned char c = static_cast<unsigned char>(out[i]);
@@ -18,12 +23,13 @@ string ToLower(const string &str) {
 	return out;
 }
 
+// Identity validation / sanitization
 static bool IsValidChar(unsigned char c) {
 	return isalnum(c) || c == '[' || c == '\\' || c == ']' || c == '^' ||
 	       c == '_' || c == '-' || c == '{' || c == '}' || c == '|' || c == '`';
 }
 
-bool IsValidNickname(const string &str) {
+bool IsValidNickname(const string& str) {
 	if (str.empty() || isdigit(static_cast<unsigned char>(str[0])) ||
 	    str[0] == '-' || str[0] == '/')
 		return false;
@@ -36,7 +42,7 @@ bool IsValidNickname(const string &str) {
 	return true;
 }
 
-string ToValidUsername(const string &str) {
+string ToValidUsername(const string& str) {
 	string out;
 	for (size_t i = 0; i < str.size(); ++i) {
 		if (IsValidChar(static_cast<unsigned char>(str[i])))

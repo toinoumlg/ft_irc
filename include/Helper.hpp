@@ -1,8 +1,10 @@
 #pragma once
+
 #include <string>
 
-using namespace std;
+// IRC name normalization
+std::string ToLower(const std::string& str);
 
-string ToLower(const string &str);
-bool IsValidNickname(const string &str);
-string ToValidUsername(const string &str);
+// Identity validation / sanitization
+bool IsValidNickname(const std::string& str);
+std::string ToValidUsername(const std::string& str);

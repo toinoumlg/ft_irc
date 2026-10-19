@@ -51,6 +51,7 @@ class Server {
 	void Join(std::vector<std::string>& args, Client& client);
 	void Part(std::vector<std::string>& args, Client& client);
 	void Kick(std::vector<std::string>& args, Client& client);
+	void KickOne(std::vector<std::string>& args, Client& client);
 	void Topic(std::vector<std::string>& args, Client& client);
 	void Invite(std::vector<std::string>& args, Client& client);
 	void Mode(std::vector<std::string>& args, Client& client);
@@ -58,6 +59,7 @@ class Server {
 	// Lookup / argument parsing
 	bool NicknameExists(const std::string& nickname, const Client& client);
 	std::vector<Channel>::iterator GetChannelByName(const std::string& name);
+	int GetMessageTarget(const std::string& target);
 	int GetClientByNick(const std::string& nickname);
 	static std::vector<std::string> SplitTargets(std::string& args);
 	static std::vector<std::pair<std::string, std::string> >
@@ -92,6 +94,7 @@ class Server {
 	// Configuration
 	std::string _port;
 	std::string _password;
+	std::string _created;
 
 	// Channels, monitored sockets and clients
 	std::vector<Channel> _channels;

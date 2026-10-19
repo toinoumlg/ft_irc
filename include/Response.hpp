@@ -7,6 +7,10 @@ class Client;
 enum StatusCode {
 	// Registration / commands
 	RPL_WELCOME = 1,
+	RPL_YOURHOST = 2,
+	RPL_CREATED = 3,
+	RPL_MYINFO = 4,
+	ERR_NOSUCHSERVER = 402,
 	ERR_UNKNOWNCOMMAND = 421,
 	ERR_NEEDMOREPARAMS = 461,
 	ERR_PASSWDMISMATCH = 464,
@@ -62,6 +66,15 @@ class Response {
 	                         const std::string& message);
 	static std::string Build(const Client& from, const std::string& command,
 	                         const std::string& message);
+	static std::string BuildError(StatusCode code, const Client& client,
+	                              const std::string& target,
+	                              const std::string& description);
+	static std::string BuildError(StatusCode code, const Client& client,
+	                              const std::string& first,
+	                              const std::string& second,
+	                              const std::string& description);
+
+	static std::string Finish(const std::string& line);
 
 	// Wire format constants
 	static const std::string LOCALHOST;

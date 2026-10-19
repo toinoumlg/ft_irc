@@ -8,3 +8,7 @@ std::string ToLower(const std::string& str);
 // Identity validation / sanitization
 bool IsValidNickname(const std::string& str);
 std::string ToValidUsername(const std::string& str);
+
+// Protocol parameter validation
+bool IsValidUsername(const std::string& str);
+bool IsValidKey(const std::string& str);

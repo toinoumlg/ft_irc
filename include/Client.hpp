@@ -26,6 +26,8 @@ class Client {
 	// Client identity
 	void SetNickname(const std::string& value);
 	void SetUser(const std::vector<std::string>& values);
+	void SetHost(const std::string& host);
+	const std::string& GetHost() const;
 	std::string Identity() const;
 	const std::string& GetNickname() const;
 	const std::string& GetLower() const;
@@ -38,6 +40,7 @@ class Client {
 	bool SetRegistered();
 
 	// Closing state
+	void Abort() throw();
 	bool IsClosing() const;
 	bool ShouldClose() const;
 	void MarkClosing(const std::string& reason);
@@ -48,13 +51,14 @@ class Client {
 	enum ClosingState { OPEN, DRAIN, NOW };
 
 	// Parsing
-	static std::vector<std::string> ParseLine(const std::string& line);
+	std::vector<std::string> ParseLine(const std::string& line);
 
 	// Input / output buffers
 	std::string _buffer;
 	std::string _output_buffer;
 
 	// Identity
+	std::string _host;
 	std::string _user;
 	std::string _nickname;
 	std::string _lower_nickname;
@@ -62,6 +66,7 @@ class Client {
 	std::string _mode;
 
 	// Registration
+	bool _has_user;
 	bool _has_set_pwd;
 	bool _is_registered;
 

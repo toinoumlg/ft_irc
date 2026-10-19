@@ -8,6 +8,7 @@ class Channel {
 	Channel(const std::string& name, int creator_fd);
 	Channel(const std::string& name, int creator_fd, const std::string& key);
 	~Channel();
+	void Swap(Channel& other) throw();
 
 	// Name
 	static bool IsValidName(const std::string& name);
@@ -48,8 +49,7 @@ class Channel {
 	void SetKey(const std::string& key);
 
 	// Mode summary
-	void SetModes();
-	std::string GetModes() const;
+	std::string GetModes(bool member = true) const;
 
    private:
 	// Name
@@ -74,6 +74,4 @@ class Channel {
 	// Channel key
 	std::string _key;
 
-	// Mode summary
-	std::string _modes;
 };

@@ -7,8 +7,15 @@ OBJECTS_DIR = build
 INCLUDE_DIR = include
 
 
-CMD_FILES = Pass Nick User Privmsg Join Quit Kick Ping Cap Topic Invite Mode Part
-CPP_FILES = main Client Server Channel Response Broadcast Helper $(addprefix commands/, $(CMD_FILES))
+CONNECTION_FILES = Pass Nick User Quit Ping Cap
+CHANNEL_FILES = Join Part Kick Invite Topic Mode
+MESSAGING_FILES = Privmsg
+CMD_FILES = $(addprefix connection/, $(CONNECTION_FILES)) \
+            $(addprefix channel/, $(CHANNEL_FILES)) \
+            $(addprefix messaging/, $(MESSAGING_FILES))
+SERVER_FILES = Server ServerNetwork ServerCommands ServerLookup ServerNotifications
+CPP_FILES = main Client Channel Response Broadcast Helper $(SERVER_FILES) \
+            $(addprefix commands/, $(CMD_FILES))
 SOURCES   = $(addprefix $(SOURCE_DIR)/, $(addsuffix .cpp, $(CPP_FILES)))
 OBJECTS   = $(patsubst $(SOURCE_DIR)/%.cpp, $(OBJECTS_DIR)/%.o, $(SOURCES))
 DEPS      = $(OBJECTS:.o=.d)

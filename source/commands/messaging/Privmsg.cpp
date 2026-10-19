@@ -5,6 +5,8 @@
 using namespace std;
 
 // Messaging / channel commands
+// [francais] Modification: résout les destinations privées complètes et autorise
+// les messages extérieurs puisque le mode n n'est pas implémenté.
 void Server::Privmsg(vector<string> &args, Client &client) {
 	if (args.empty())
 		return QueueMessage(Response::Build(ERR_NORECIPIENT, client,
@@ -24,11 +26,6 @@ void Server::Privmsg(vector<string> &args, Client &client) {
 		    GetChannelByName(*target);
 		if (channel_it != _channels.end()) {
 			const Channel &channel = *channel_it;
-			if (!channel.HasClient(_socket_in_use))
-				QueueMessage(Response::Build(
-				    ERR_CANNOTSENDTOCHAN, client,
-				    channel.GetName() + " :Cannot send to channel"));
-			else
 				BroadcastMessages(
 				    channel.GetClients(),
 				    Response::Build(client, "PRIVMSG " + channel.GetName(),
@@ -37,7 +34,11 @@ void Server::Privmsg(vector<string> &args, Client &client) {
 			continue;
 		}
 
-		const int fd = GetClientByNick(*target);
+		const int fd = GetMessageTarget(*target);
+		if (fd == -2) {
+			QueueMessage(Response::BuildError(ERR_TOOMANYTARGETS, client, *target, "Duplicate recipients. No message delivered"));
+			continue;
+		}
 		if (fd != -1) {
 			QueueMessage(
 			    fd,
@@ -46,7 +47,6 @@ void Server::Privmsg(vector<string> &args, Client &client) {
 			continue;
 		}
 
-		QueueMessage(Response::Build(ERR_NOSUCHNICK, client,
-		                             *target + " :No such nick/channel"));
+		QueueMessage(Response::BuildError(ERR_NOSUCHNICK, client, *target, "No such nick/channel"));
 	}
 }

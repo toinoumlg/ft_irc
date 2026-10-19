@@ -7,6 +7,8 @@
 
 using namespace std;
 
+// [francais] Modification: retire le résumé de modes mémorisé ; les modes sont
+// reconstruits lors de la consultation selon les droits du demandeur.
 Channel::Channel(const string& name, const int creator_fd)
     : _name(name),
       _max_client(0),
@@ -14,10 +16,11 @@ Channel::Channel(const string& name, const int creator_fd)
       _invite_only(false) {
 	_clients.push_back(creator_fd);
 	_operators.push_back(creator_fd);
-	SetModes();
 	_lower_name = ToLower(_name);
 }
 
+// [francais] Modification: retire le résumé de modes mémorisé ; les modes sont
+// reconstruits lors de la consultation selon les droits du demandeur.
 Channel::Channel(const string& name, const int creator_fd, const string& key)
     : _name(name),
       _max_client(0),
@@ -26,18 +29,40 @@ Channel::Channel(const string& name, const int creator_fd, const string& key)
       _key(key) {
 	_clients.push_back(creator_fd);
 	_operators.push_back(creator_fd);
-	SetModes();
 	_lower_name = ToLower(_name);
 }
 
 Channel::~Channel() {}
 
+// [francais] Ajout: échange les données sans allocation pour
+// supprimer un canal vide même pendant un manque de mémoire.
+// La suppression sans nouvelle allocation permet de nettoyer
+// les canaux même après un échec d'allocation mémoire (bad_alloc).
+void Channel::Swap(Channel& other) throw() {
+	_name.swap(other._name);
+	_lower_name.swap(other._lower_name);
+	_clients.swap(other._clients);
+	_operators.swap(other._operators);
+	_topic.swap(other._topic);
+	_invited.swap(other._invited);
+	_key.swap(other._key);
+	swap(_max_client, other._max_client);
+	swap(_topic_restricted, other._topic_restricted);
+	swap(_invite_only, other._invite_only);
+}
+
 // Name
+// [francais] Modification: accepte 50 caractères (inversion du signe), refus
+// des carac interdits controlés ici et limite les types pris en charge a # et
+// &.
 bool Channel::IsValidName(const string& name) {
-	return !name.empty() &&
-	       (name[0] == '#' || name[0] == '+' || name[0] == '!' ||
-	        name[0] == '&') &&
-	       name.size() < 50;
+	if (name.empty() || name.size() > 50 || (name[0] != '#' && name[0] != '&'))
+		return false;
+	const size_t separator = name.find(':');
+	if (separator != string::npos && name.find(':', separator + 1) != string::npos)
+		return false;
+	return name.find_first_of(" ,\a\r\n") == string::npos &&
+	       name.find('\0') == string::npos;
 }
 
 const string& Channel::GetName() const {
@@ -159,7 +184,9 @@ void Channel::SetKey(const string& key) {
 }
 
 // Mode summary
-void Channel::SetModes() {
+// [francais] Modification: construit les modes à la demande et masque la valeur
+// de la limite aux personnes exterieures au canal.
+string Channel::GetModes(bool member) const {
 	string modes = "+";
 	string params;
 	if (IsInviteOnly())
@@ -174,11 +201,8 @@ void Channel::SetModes() {
 		ostringstream stream;
 		stream << _max_client;
 		modes += 'l';
-		params += ' ' + stream.str();
+		if (member)
+			params += ' ' + stream.str();
 	}
-	_modes = modes + params;
-}
-
-string Channel::GetModes() const {
-	return _modes;
+	return modes + params;
 }

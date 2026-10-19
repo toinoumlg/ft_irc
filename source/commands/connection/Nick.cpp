@@ -1,7 +1,6 @@
 #include "Server.hpp"
 
 #include <algorithm>
-#include <cctype>
 
 #include "Helper.hpp"
 #include "Response.hpp"
@@ -9,6 +8,8 @@
 using namespace std;
 
 // Connection commands
+// [francais] Abrège uniquement la copie du pseudo invalide dans l'erreur 432
+// si nécessaire pour tenir dans 512 octets ; le pseudo demandé reste refusé.
 void Server::Nick(vector<string> &args, Client &client) {
 	if (!client.HasSetPassword())
 		return QueueMessage(Response::Build(ERR_NOTREGISTERED, client,
@@ -17,14 +18,13 @@ void Server::Nick(vector<string> &args, Client &client) {
 		return QueueMessage(
 		    Response::Build(ERR_NONICKNAMEGIVEN, client, ":No nickname given"));
 	if (!IsValidNickname(args[0]))
-		return QueueMessage(Response::Build(ERR_ERRONEUSNICKNAME, client,
-		                                    args[0] + " :Erroneous nickname"));
+		return QueueMessage(Response::BuildError(ERR_ERRONEUSNICKNAME, client,
+		                                         args[0], "Erroneous nickname"));
 	if (args[0] == client.GetNickname())
 		return;
 
 	if (NicknameExists(args[0], client))
-		return QueueMessage(Response::Build(
-		    ERR_NICKNAMEINUSE, client, args[0] + " :Nickname already in use"));
+		return QueueMessage(Response::BuildError(ERR_NICKNAMEINUSE, client, args[0], "Nickname already in use"));
 
 	const Client old_client = client;
 	client.SetNickname(args[0]);

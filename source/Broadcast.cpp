@@ -5,14 +5,19 @@
 using namespace std;
 
 // Output queues / broadcasts
+// [francais] Modification: centralise la mise en file, on ignore les destinataires absents
+// et surveille seulement les files contenant des données.
 void Server::QueueMessage(const string& message) {
-	_clients[_socket_in_use].QueueOutput(message);
-	EnablePollout(_socket_in_use);
+	QueueMessage(_socket_in_use, message);
 }
 
+// [francais] Modification: centralise la mise en file, on ignore les destinataires absents
+// et surveille seulement les files contenant des données.
 void Server::QueueMessage(const int fd, const string& message) {
-	_clients[fd].QueueOutput(message);
-	EnablePollout(fd);
+	ClientMap::iterator it = _clients.find(fd);
+	if (it == _clients.end() || message.empty()) return;
+	it->second.QueueOutput(message);
+	if (it->second.HasPendingOutput()) EnablePollout(fd);
 }
 
 void Server::BroadcastMessages(const vector<int>& members,
